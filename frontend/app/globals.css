@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f6f7fb;
+  --surface: #ffffff;
+  --card: #ffffff;
+  --elevated: #fcfcfd;
+  --primary: #5b5ceb;
+  --primary-hover: #4c50e2;
+  --primary-active: #3d45d9;
+  --accent-blue: #3578ff;
+  --accent-pink: #7c5cff;
+  --accent-green: #2dbe72;
+  --text-primary: #171b25;
+  --text-secondary: #5f6675;
+  --text-muted: #8b92a2;
+  --border: #e7eaf1;
+  --border-hover: #d8dde8;
+  --shadow-card: 0 12px 32px rgba(25, 35, 55, 0.08);
+  --shadow-hero: 0 24px 60px rgba(90, 70, 255, 0.24);
+  --shadow-floating: 0 20px 60px rgba(25, 35, 55, 0.12);
+  --hero-gradient: linear-gradient(135deg, #5b5ceb 0%, #7c4dff 50%, #a65cff 100%);
+}
+
+[data-theme="dark"] {
+  --background: #090b13;
+  --surface: #101521;
+  --card: #151b28;
+  --elevated: #1c2434;
+  --primary: #8b5cf6;
+  --primary-hover: #9d72ff;
+  --primary-active: #7b49ef;
+  --accent-blue: #4f8cff;
+  --accent-pink: #c66bff;
+  --accent-green: #39d98a;
+  --text-primary: #ffffff;
+  --text-secondary: #b6bed1;
+  --text-muted: #7e8798;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.16);
+  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.28);
+  --shadow-hero: 0 24px 60px rgba(90, 70, 255, 0.24);
+  --shadow-floating: 0 20px 60px rgba(0, 0, 0, 0.24);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--background);
+  color: var(--text-primary);
+  font-family: Inter, system-ui, sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.cover-aurora {
+  background: linear-gradient(145deg, var(--accent-blue) 0%, var(--primary) 52%, var(--accent-pink) 100%);
+}
+
+.cover-neon {
+  background: linear-gradient(145deg, var(--accent-green) 0%, var(--accent-blue) 48%, var(--primary) 100%);
+}
+
+.cover-coast {
+  background: linear-gradient(145deg, var(--accent-pink) 0%, var(--accent-blue) 55%, var(--accent-green) 100%);
+}
+
+.cover-spring {
+  background: linear-gradient(145deg, var(--primary) 0%, var(--accent-green) 48%, var(--accent-pink) 100%);
+}
