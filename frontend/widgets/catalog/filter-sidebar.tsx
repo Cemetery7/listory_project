@@ -1,7 +1,6 @@
 "use client";
 
 import { BookOpen, SlidersHorizontal, Sparkles, Tags } from "lucide-react";
-import { categories, tags } from "@/data/mock";
 import { Card } from "@/shared/ui/card";
 import { Tag } from "@/shared/ui/tag";
 
@@ -22,6 +21,8 @@ const statusOptions: Array<{ label: string; value: CatalogFilters["status"] }> =
   { label: "В процессе", value: "ongoing" },
   { label: "Завершено", value: "completed" }
 ];
+const categories = ["Оригинальные"];
+const tags = ["в процессе", "завершено", "черновик"];
 
 export function FilterSidebar({ filters, onChange }: FilterSidebarProps) {
   return (

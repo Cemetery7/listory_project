@@ -16,7 +16,7 @@ const collections = [
 
 export function CollectionsSection() {
   return (
-    <section>
+    <section id="collections">
       <SectionHeader title="Подборки" />
       <div className="grid gap-4 md:grid-cols-2">
         {collections.map((collection) => (

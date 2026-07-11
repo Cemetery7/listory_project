@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { works } from "@/data/mock";
+import { useSearchParams } from "next/navigation";
+import type { Work } from "@/entities/work/types";
 import { AppShell } from "@/widgets/app-shell/app-shell";
 import { StoryCard } from "@/entities/work/components/story-card";
 import { EmptyState } from "@/shared/ui/empty-state";
@@ -16,8 +17,13 @@ const initialFilters: CatalogFilters = {
   sort: "popular"
 };
 
-export function CatalogPage() {
-  const [filters, setFilters] = useState<CatalogFilters>(initialFilters);
+export function CatalogPage({ works }: { works: Work[] }) {
+  const searchParams = useSearchParams();
+  const [filters, setFilters] = useState<CatalogFilters>(() => ({
+    ...initialFilters,
+    category: searchParams.get("category") ?? initialFilters.category,
+    tag: searchParams.get("tag") ?? initialFilters.tag
+  }));
 
   const filteredWorks = useMemo(() => {
     return works
@@ -70,7 +76,7 @@ export function CatalogPage() {
             ))}
           </div>
         ) : (
-          <EmptyState title="По вашему запросу ничего не найдено." description="Попробуйте изменить фильтры." />
+          <EmptyState title="Произведений пока нет" description="Опубликуйте первую историю, и она появится в каталоге." />
         )}
       </section>
     </AppShell>

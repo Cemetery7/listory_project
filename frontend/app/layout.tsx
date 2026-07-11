@@ -3,7 +3,17 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Листория",
-  description: "Истории, которые хочется читать."
+  description: "Истории, которые хочется читать.",
+  icons: {
+    icon: [
+      {
+        url: "/brand/logo-icon.png",
+        sizes: "any",
+        type: "image/png"
+      }
+    ],
+    apple: "/brand/logo-icon.png"
+  }
 };
 
 export default function RootLayout({

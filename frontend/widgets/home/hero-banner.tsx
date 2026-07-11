@@ -2,7 +2,8 @@
 
 import { motion } from "framer-motion";
 import { ArrowRight, BookOpen, Sparkles } from "lucide-react";
-import { Button } from "@/shared/ui/button";
+import Link from "next/link";
+import { ROUTES } from "@/constants/routes";
 
 export function HeroBanner() {
   return (
@@ -26,14 +27,20 @@ export function HeroBanner() {
             Откройте новые миры, сохраните любимые произведения и начните писать с AI-помощником для тегов и описаний.
           </p>
           <div className="mt-4 flex flex-wrap gap-4">
-            <Button className="h-[52px] bg-white px-6 text-base text-[#171B25] hover:bg-white/90" size="lg">
+            <Link
+              className="inline-flex h-[52px] items-center justify-center gap-2 rounded-md bg-white px-6 text-base font-medium text-[#171B25] transition duration-200 hover:bg-white/90"
+              href={ROUTES.CATALOG}
+            >
               Читать подборку
               <ArrowRight size={18} />
-            </Button>
-            <Button className="h-[52px] border-white/42 bg-white/10 px-6 text-base text-white hover:bg-white/16" size="lg" variant="outline">
+            </Link>
+            <Link
+              className="inline-flex h-[52px] items-center justify-center gap-2 rounded-md border border-white/42 bg-white/10 px-6 text-base font-medium text-white transition duration-200 hover:bg-white/16"
+              href={ROUTES.CREATE}
+            >
               <BookOpen size={18} />
               Начать писать
-            </Button>
+            </Link>
           </div>
         </div>
 
