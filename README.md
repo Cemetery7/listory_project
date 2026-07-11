@@ -1,6 +1,6 @@
 ## 🚀 Демо
 
-**Сайт:** https://YOUR-VERCEL.vercel.app
+**Сайт:** https://---.vercel.app
 
 **Demo аккаунт**
 
