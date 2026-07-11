@@ -14,7 +14,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791)
 ![Prisma](https://img.shields.io/badge/Prisma-7-2D3748)
-![License](https://img.shields.io/badge/license-MIT-green)
+
 
 ---
 
@@ -334,4 +334,8 @@ https://github.com/Cemetery7
 
 # Лицензия
 
-MIT License
+На данный момент проект опубликован исключительно в целях демонстрации в рамках хакатона.
+
+Все права на исходный код, дизайн, логотипы и материалы проекта принадлежат автору.
+
+Использование, копирование, распространение и создание производных проектов без письменного разрешения автора запрещено.
