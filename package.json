@@ -1,9 +1,11 @@
 {
+  "name": "listoria",
+  "private": true,
   "type": "module",
   "scripts": {
-    "build": "pnpm prisma:generate && pnpm --dir frontend build",
-    "lint": "pnpm --dir frontend lint",
-    "typecheck": "pnpm --dir frontend typecheck",
+    "build": "pnpm prisma:generate && pnpm --filter listoria-frontend build",
+    "lint": "pnpm --filter listoria-frontend lint",
+    "typecheck": "pnpm --filter listoria-frontend typecheck",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:status": "prisma migrate status",
