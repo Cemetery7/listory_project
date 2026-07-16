@@ -22,5 +22,8 @@
   },
   "prisma": {
     "seed": "node --experimental-strip-types prisma/seed.ts"
+  },
+  "devDependencies": {
+    "next": "15.1.0"
   }
 }
