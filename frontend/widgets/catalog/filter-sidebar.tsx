@@ -20,7 +20,7 @@ type FilterSidebarProps = {
 
 const statusOptions: Array<{ label: string; value: CatalogFilters["status"] }> = [
   { label: "Все", value: "all" },
-  { label: "В процессе", value: "ongoing" },
+  { label: "В работе", value: "ongoing" },
   { label: "Завершено", value: "completed" }
 ];
 const categories = ["Оригинальные"];

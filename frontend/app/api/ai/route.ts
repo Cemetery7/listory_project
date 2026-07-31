@@ -5,7 +5,7 @@ import { authorizeActiveUser } from "@/lib/auth/authorization";
 import { AI_CONFIG } from "@/lib/ai/config";
 import { getAIProvider } from "@/lib/ai/provider";
 import { checkAIRateLimit } from "@/lib/ai/rate-limit";
-import { AITimeoutError, AIUnavailableError, type AIOperation, type AIRequestInput, type AIResult } from "@/lib/ai/types";
+import { AIRateLimitError, AITimeoutError, AIUnavailableError, type AIOperation, type AIRequestInput, type AIResult } from "@/lib/ai/types";
 
 type AIPayload = AIRequestInput & {
   operation?: AIOperation;
@@ -49,16 +49,29 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ data: result });
   } catch (error) {
-    if (error instanceof AIUnavailableError) {
+    if (error instanceof AIRateLimitError || isNamedError(error, "AIRateLimitError")) {
+      return errorResponse("ai_rate_limited", error.message, 429);
+    }
+
+    if (error instanceof AIUnavailableError || isNamedError(error, "AIUnavailableError")) {
       return errorResponse("ai_unavailable", error.message, 503);
     }
 
-    if (error instanceof AITimeoutError) {
+    if (error instanceof AITimeoutError || isNamedError(error, "AITimeoutError")) {
       return errorResponse("ai_timeout", error.message, 504);
     }
 
     return errorResponse("ai_failed", "AI не смог подготовить ответ. Попробуйте позже.", 502);
   }
+}
+
+function isNamedError(error: unknown, name: string): error is { name: string; message: string } {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+
+  const candidate = error as { name?: unknown; message?: unknown };
+  return candidate.name === name && typeof candidate.message === "string";
 }
 
 async function runOperation(provider: ReturnType<typeof getAIProvider>, operation: AIOperation, input: AIRequestInput): Promise<AIResult> {

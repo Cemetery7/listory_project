@@ -11,6 +11,10 @@ export const ROUTES = {
   MY_WORKS: "/my-works",
   SETTINGS: "/settings",
   ADMIN: "/admin",
+  ADMIN_WORKS: "/admin/works",
+  ADMIN_USERS: "/admin/users",
   work: (id: string) => `/works/${id}`,
+  editWork: (id: string) => `/works/${id}/edit`,
+  workComments: (id: string) => `/works/${id}/comments`,
   readChapter: (id: string, chapterId: string) => `/works/${id}/read/${chapterId}`
 } as const;

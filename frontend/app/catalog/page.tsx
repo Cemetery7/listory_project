@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getPublishedStories, type StorySort } from "@/lib/stories/queries";
 import { CatalogPage } from "@/widgets/catalog/catalog-page";
 import type { CatalogFilters } from "@/widgets/catalog/filter-sidebar";
+import { isStoryStatus } from "@/lib/stories/status";
 
 export const metadata: Metadata = {
   title: "Каталог | Листория",
@@ -39,7 +40,7 @@ export default async function Page({ searchParams }: CatalogPageProps) {
 }
 
 function normalizeStatus(status?: string): CatalogFilters["status"] {
-  if (status === "ongoing" || status === "completed") {
+  if (isStoryStatus(status) && status !== "draft") {
     return status;
   }
 

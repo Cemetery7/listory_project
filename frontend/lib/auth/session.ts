@@ -36,7 +36,10 @@ export async function getCurrentUser() {
           status: true,
           visibility: true,
           createdAt: true,
-          updatedAt: true
+          updatedAt: true,
+          _count: {
+            select: { chapters: true }
+          }
         },
         orderBy: {
           updatedAt: "desc"

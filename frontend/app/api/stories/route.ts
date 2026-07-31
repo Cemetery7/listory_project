@@ -4,15 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { authorizeActiveUser } from "@/lib/auth/authorization";
 import { errorResponse, successResponse } from "@/lib/auth/responses";
 import { getPublishedStories, type StorySort } from "@/lib/stories/queries";
-
-type CreateStoryPayload = {
-  title?: string;
-  description?: string;
-  status?: string;
-  cover?: string | null;
-  chapterTitle?: string;
-  chapterContent?: string;
-};
+import { parseStoryEditorPayload } from "@/lib/stories/editor";
+import { isStoryStatus } from "@/lib/stories/status";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -41,34 +34,19 @@ export async function POST(request: Request) {
   }
 
   const user = authorization.user;
-  const payload = await readJsonBody<CreateStoryPayload>(request);
+  const payload = await readJsonBody<unknown>(request);
 
   if (!payload) {
     return errorResponse("invalid_json", "Некорректный запрос.", 400);
   }
 
-  const title = payload.title?.trim();
-  const description = payload.description?.trim();
-  const chapterTitle = payload.chapterTitle?.trim() || "Глава 1";
-  const chapterContent = payload.chapterContent?.trim();
-  const status = normalizeStatus(payload.status);
-  const cover = normalizeCover(payload.cover);
+  const parsed = parseStoryEditorPayload(payload);
 
-  if (!title) {
-    return errorResponse("validation_error", "Название обязательно.", 422);
+  if ("error" in parsed) {
+    return errorResponse("validation_error", parsed.error, 422);
   }
 
-  if (!description) {
-    return errorResponse("validation_error", "Описание обязательно.", 422);
-  }
-
-  if (!chapterContent) {
-    return errorResponse("validation_error", "Первая глава обязательна.", 422);
-  }
-
-  if (payload.cover && !cover) {
-    return errorResponse("validation_error", "Некорректный URL обложки.", 422);
-  }
+  const { title, description, status, cover, chapters } = parsed.data;
 
   try {
     const story = await prisma.$transaction(async (transaction) => {
@@ -82,13 +60,13 @@ export async function POST(request: Request) {
         }
       });
 
-      await transaction.chapter.create({
-        data: {
+      await transaction.chapter.createMany({
+        data: chapters.map((chapter, index) => ({
           storyId: createdStory.id,
-          title: chapterTitle,
-          content: chapterContent,
-          order: 1
-        }
+          title: chapter.title,
+          content: chapter.content,
+          order: index + 1
+        }))
       });
 
       return createdStory;
@@ -100,21 +78,8 @@ export async function POST(request: Request) {
   }
 }
 
-function normalizeCover(cover?: string | null) {
-  if (!cover) {
-    return null;
-  }
-
-  try {
-    const url = new URL(cover);
-    return url.protocol === "https:" && url.hostname.endsWith(".public.blob.vercel-storage.com") ? url.toString() : null;
-  } catch {
-    return null;
-  }
-}
-
 function normalizeCatalogStatus(status: string | null) {
-  if (status === "ongoing" || status === "completed") {
+  if (isStoryStatus(status) && status !== "draft") {
     return status;
   }
 
@@ -123,16 +88,4 @@ function normalizeCatalogStatus(status: string | null) {
 
 function normalizeSort(sort: string | null): StorySort {
   return sort === "updated" ? "updated" : "new";
-}
-
-function normalizeStatus(status?: string) {
-  if (status === "completed") {
-    return "completed";
-  }
-
-  if (status === "draft") {
-    return "draft";
-  }
-
-  return "ongoing";
 }

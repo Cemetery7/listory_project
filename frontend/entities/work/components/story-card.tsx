@@ -19,7 +19,7 @@ export function StoryCard({ work }: StoryCardProps) {
           {work.coverUrl ? <Image alt="" className="object-cover" fill sizes="(max-width: 640px) 100vw, 50vw" src={work.coverUrl} /> : null}
           <div className="absolute inset-0 bg-gradient-to-t from-black/38 to-transparent transition duration-200 group-hover:from-black/24" />
           <Badge className="absolute left-4 top-4 border-white/16 bg-black/20 text-white backdrop-blur-[16px]">
-            {work.status === "completed" ? "Завершено" : "В процессе"}
+            {work.status === "completed" ? "Завершено" : "В работе"}
           </Badge>
           <div className="absolute bottom-4 left-4 flex items-center gap-1 text-sm font-semibold text-white">
             <Star size={16} />

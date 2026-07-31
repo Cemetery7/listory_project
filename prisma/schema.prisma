@@ -42,6 +42,8 @@ model User {
   createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
   stories       Story[]
+  likes         StoryLike[]
+  comments      Comment[]
   adminActions  AdminAuditLog[] @relation("AdminActor")
 
   @@index([role])
@@ -61,6 +63,8 @@ model Story {
   updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
   author      User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
   chapters    Chapter[]
+  likes       StoryLike[]
+  comments    Comment[]
 
   @@index([authorId])
   @@index([visibility])
@@ -76,9 +80,46 @@ model Chapter {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
   story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  comments  Comment[]
 
   @@index([storyId])
+  @@unique([storyId, order])
   @@map("chapters")
+}
+
+model StoryLike {
+  userId    String   @map("user_id") @db.Uuid
+  storyId   String   @map("story_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@id([userId, storyId])
+  @@index([storyId])
+  @@map("story_likes")
+}
+
+model Comment {
+  id        String    @id @default(uuid()) @db.Uuid
+  storyId   String    @map("story_id") @db.Uuid
+  chapterId String?   @map("chapter_id") @db.Uuid
+  authorId  String    @map("author_id") @db.Uuid
+  parentId  String?   @map("parent_id") @db.Uuid
+  content   String
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  story     Story     @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  chapter   Chapter?  @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies   Comment[] @relation("CommentReplies")
+
+  @@index([storyId, createdAt])
+  @@index([chapterId])
+  @@index([authorId])
+  @@index([parentId])
+  @@map("comments")
 }
 
 model AdminAuditLog {

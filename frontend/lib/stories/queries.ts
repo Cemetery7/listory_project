@@ -1,5 +1,6 @@
-import type { Work, WorkStatus } from "@/entities/work/types";
+import type { Work } from "@/entities/work/types";
 import { prisma } from "@/lib/prisma";
+import { isStoryStatus, storyStatusLabel } from "@/lib/stories/status";
 
 const coverClasses = ["cover-aurora", "cover-neon", "cover-coast", "cover-spring"];
 
@@ -28,6 +29,10 @@ type StoryWithAuthorAndChapters = {
     order: number;
     createdAt: Date;
   }>;
+  _count: {
+    likes: number;
+    comments: number;
+  };
 };
 
 export function mapStoryToWork(story: StoryWithAuthorAndChapters): Work {
@@ -43,13 +48,13 @@ export function mapStoryToWork(story: StoryWithAuthorAndChapters): Work {
     author: story.author.username,
     category: "Оригинальные",
     fandom: "Авторский мир",
-    status: normalizeStatus(story.status),
+    status: isStoryStatus(story.status) ? story.status : "ongoing",
     rating: 0,
     views: "0",
-    likes: "0",
-    commentsCount: 0,
+    likes: String(story._count.likes),
+    commentsCount: story._count.comments,
     chaptersCount: story.chapters.length,
-    tags: [statusLabel(story.status)],
+    tags: [isStoryStatus(story.status) ? storyStatusLabel(story.status).toLocaleLowerCase("ru-RU") : "в работе"],
     updatedAt: formatRelativeDate(story.updatedAt)
   };
 }
@@ -107,6 +112,14 @@ export async function getPublishedStories(options: StoryQuery = {}) {
           order: true,
           createdAt: true
         }
+      },
+      _count: {
+        select: {
+          likes: true,
+          comments: {
+            where: { deletedAt: null }
+          }
+        }
       }
     }
   });
@@ -114,11 +127,12 @@ export async function getPublishedStories(options: StoryQuery = {}) {
   return stories.map(mapStoryToWork);
 }
 
-export async function getStoryById(id: string) {
+export async function getStoryById(id: string, viewerId?: string) {
   return prisma.story.findFirst({
     where: {
       id,
-      visibility: "PUBLIC"
+      visibility: "PUBLIC",
+      status: { in: ["ongoing", "completed"] }
     },
     include: {
       author: {
@@ -130,34 +144,27 @@ export async function getStoryById(id: string) {
         orderBy: {
           order: "asc"
         }
+      },
+      likes: {
+        where: {
+          userId: viewerId ?? "00000000-0000-0000-0000-000000000000"
+        },
+        select: {
+          userId: true
+        }
+      },
+      _count: {
+        select: {
+          likes: true,
+          comments: {
+            where: { deletedAt: null }
+          }
+        }
       }
     }
   });
 }
 
-function normalizeStatus(status: string): WorkStatus {
-  if (status === "completed") {
-    return "completed";
-  }
-
-  if (status === "draft") {
-    return "draft";
-  }
-
-  return "ongoing";
-}
-
-function statusLabel(status: string) {
-  if (status === "completed") {
-    return "завершено";
-  }
-
-  if (status === "draft") {
-    return "черновик";
-  }
-
-  return "в процессе";
-}
 
 function formatRelativeDate(date: Date) {
   return new Intl.DateTimeFormat("ru-RU", {

@@ -1,10 +1,8 @@
 "use client";
 
-import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { upload } from "@vercel/blob/client";
-import { AlignLeft, BookOpen, Check, FileText, Heading2, ImagePlus, Italic, List, Save, Send, Sparkles, X } from "lucide-react";
+import { BookOpen, Check, FileText, Send, Sparkles } from "lucide-react";
 import { AppShell } from "@/widgets/app-shell/app-shell";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
@@ -14,8 +12,11 @@ import { Select } from "@/shared/ui/select";
 import { Tag } from "@/shared/ui/tag";
 import { Textarea } from "@/shared/ui/textarea";
 import { Toast } from "@/shared/ui/toast";
-import { AI_CONFIG } from "@/lib/ai/config";
-import type { AIResult, AIOperation } from "@/lib/ai/types";
+import type { AIOperation } from "@/lib/ai/types";
+import { isStoryStatus, type StoryStatus } from "@/lib/stories/status";
+import { AISuggestionPanel, fetchAI, useAICooldown } from "@/widgets/story-editor/ai-client";
+import { ChapterDraftsEditor, createChapterDraft, type ChapterDraft } from "@/widgets/story-editor/chapter-drafts-editor";
+import { StoryCoverField } from "@/widgets/story-editor/story-cover-field";
 import { cn } from "@/lib/utils";
 
 const notice = "Функция будет подключена в следующем Sprint.";
@@ -26,7 +27,7 @@ const tagOptions = ["slow burn", "уют", "тайны", "дружба", "маг
 type StoryDraft = {
   title: string;
   description: string;
-  status: string;
+  status: StoryStatus;
   cover: string | null;
 };
 
@@ -38,7 +39,7 @@ export function CreateStoryPage() {
     status: "ongoing",
     cover: null
   });
-  const [chapterText, setChapterText] = useState("");
+  const [chapters, setChapters] = useState<ChapterDraft[]>(() => [createChapterDraft(1)]);
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState(notice);
 
@@ -72,7 +73,7 @@ export function CreateStoryPage() {
             }}
           />
         ) : (
-          <ChapterEditor chapterText={chapterText} onChapterTextChange={setChapterText} onToast={showToast} storyDraft={storyDraft} />
+          <CreateChaptersStep chapters={chapters} onChange={setChapters} onToast={showToast} storyDraft={storyDraft} />
         )}
       </div>
       <Toast message={toastMessage} visible={toastVisible} />
@@ -98,38 +99,9 @@ function StoryInfoForm({
   const [descriptionSuggestion, setDescriptionSuggestion] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
   const [loadingOperation, setLoadingOperation] = useState<AIOperation | null>(null);
-  const [coverFile, setCoverFile] = useState<File | null>(null);
-  const [coverPreview, setCoverPreview] = useState(initialDraft.cover ?? "");
+  const [cover, setCover] = useState<string | null>(initialDraft.cover);
   const [coverPending, setCoverPending] = useState(false);
   const { cooldowns, startCooldown } = useAICooldown();
-
-  useEffect(() => {
-    if (!coverFile) {
-      return;
-    }
-
-    const previewUrl = URL.createObjectURL(coverFile);
-    setCoverPreview(previewUrl);
-    return () => URL.revokeObjectURL(previewUrl);
-  }, [coverFile]);
-
-  const selectCover = (file?: File) => {
-    if (!file) {
-      return;
-    }
-
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      onToast("Выберите изображение JPEG, PNG или WebP.");
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      onToast("Размер обложки не должен превышать 5 МБ.");
-      return;
-    }
-
-    setCoverFile(file);
-  };
 
   const requestAI = async (operation: AIOperation) => {
     if (loadingOperation || cooldowns[operation] > 0) {
@@ -180,92 +152,23 @@ function StoryInfoForm({
   return (
     <form
       className="space-y-6"
-      onSubmit={async (event) => {
+      onSubmit={(event) => {
         event.preventDefault();
         const formData = new FormData(event.currentTarget);
-        let cover = initialDraft.cover;
-
-        if (coverFile) {
-          setCoverPending(true);
-
-          try {
-            const blob = await upload(`covers/${sanitizeFilename(coverFile.name)}`, coverFile, {
-              access: "public",
-              handleUploadUrl: "/api/uploads/cover"
-            });
-            cover = blob.url;
-          } catch {
-            onToast("Не удалось загрузить обложку. Проверьте настройку Vercel Blob.");
-            setCoverPending(false);
-            return;
-          }
-
-          setCoverPending(false);
-        }
 
         onNext({
           title: title.trim(),
           description: description.trim(),
           status: normalizeStatus(String(formData.get("status") ?? "ongoing")),
-          cover: coverPreview ? cover : null
+          cover
         });
       }}
     >
       <Card className="p-5 md:p-6">
         <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
-          <div className="relative min-h-[300px] overflow-hidden rounded-lg border border-dashed border-border bg-elevated">
-            {coverPreview ? (
-              <>
-                <Image alt="Предпросмотр обложки" className="object-cover" fill sizes="220px" src={coverPreview} unoptimized={coverPreview.startsWith("blob:")} />
-                <div className="absolute inset-x-0 bottom-0 flex items-center gap-2 bg-background/80 p-3 backdrop-blur-[16px]">
-                  <label className="inline-flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-white">
-                    <ImagePlus size={16} />
-                    Заменить
-                    <input
-                      accept="image/jpeg,image/png,image/webp"
-                      className="sr-only"
-                      onChange={(event) => {
-                        selectCover(event.target.files?.[0]);
-                        event.target.value = "";
-                      }}
-                      type="file"
-                    />
-                  </label>
-                  <button
-                    aria-label="Удалить обложку"
-                    className="grid h-10 w-10 place-items-center rounded-md border border-border bg-surface text-text-secondary transition hover:text-primary"
-                    onClick={() => {
-                      setCoverFile(null);
-                      setCoverPreview("");
-                    }}
-                    title="Удалить обложку"
-                    type="button"
-                  >
-                    <X size={17} />
-                  </button>
-                </div>
-              </>
-            ) : (
-              <label className="group flex min-h-[300px] cursor-pointer flex-col items-center justify-center px-5 text-center transition duration-200 hover:bg-surface">
-                <span className="grid h-14 w-14 place-items-center rounded-md bg-primary/15 text-primary">
-                  <ImagePlus size={24} />
-                </span>
-                <span className="mt-4 text-sm font-semibold text-text-primary">Обложка</span>
-                <span className="mt-2 text-xs leading-5 text-text-muted">JPEG, PNG или WebP, до 5 МБ.</span>
-                <input
-                  accept="image/jpeg,image/png,image/webp"
-                  className="sr-only"
-                  onChange={(event) => {
-                    selectCover(event.target.files?.[0]);
-                    event.target.value = "";
-                  }}
-                  type="file"
-                />
-              </label>
-            )}
-          </div>
+          <StoryCoverField onChange={setCover} onPendingChange={setCoverPending} onToast={(message) => onToast(message)} value={cover} />
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid content-start gap-4">
             <Field
               action={
                 <AIActionButton
@@ -277,7 +180,6 @@ function StoryInfoForm({
                 />
               }
               label="Название"
-              className="md:col-span-2"
             >
               <Input name="title" onChange={(event) => setTitle(event.target.value)} placeholder="Например: Дом на краю звезд" value={title} />
             </Field>
@@ -292,7 +194,6 @@ function StoryInfoForm({
                 />
               }
               label="Краткое описание"
-              className="md:col-span-2"
             >
               <Textarea className="min-h-[132px]" name="description" onChange={(event) => setDescription(event.target.value)} placeholder="О чем эта история и почему ее стоит открыть?" value={description} />
               {descriptionSuggestion ? (
@@ -301,6 +202,10 @@ function StoryInfoForm({
                 </AISuggestionPanel>
               ) : null}
             </Field>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <Field label="Категория">
               <Select name="category" defaultValue="">
                 <option value="" disabled>
@@ -315,7 +220,7 @@ function StoryInfoForm({
             <Field label="Статус">
               <Select name="status" defaultValue={initialDraft.status}>
                 <option value="draft">Черновик</option>
-                <option value="ongoing">В процессе</option>
+                <option value="ongoing">В работе</option>
                 <option value="completed">Завершено</option>
               </Select>
             </Field>
@@ -341,10 +246,9 @@ function StoryInfoForm({
             <Field label="Персонажи">
               <Input name="characters" placeholder="Имена через запятую" />
             </Field>
-            <Field label="Пейринги" className="md:col-span-2">
+            <Field label="Пейринги" className="md:col-span-2 xl:col-span-3">
               <Input name="pairings" placeholder="Например: героиня / герой, команда & наставник" />
             </Field>
-          </div>
         </div>
       </Card>
 
@@ -390,54 +294,32 @@ function StoryInfoForm({
   );
 }
 
-function ChapterEditor({
-  chapterText,
-  onChapterTextChange,
+function CreateChaptersStep({
+  chapters,
+  onChange,
   onToast,
   storyDraft
 }: {
-  chapterText: string;
-  onChapterTextChange: (value: string) => void;
+  chapters: ChapterDraft[];
+  onChange: (chapters: ChapterDraft[]) => void;
   onToast: (message?: string) => void;
   storyDraft: StoryDraft;
 }) {
   const router = useRouter();
-  const [chapterTitle, setChapterTitle] = useState("");
   const [error, setError] = useState("");
+  const [chapterErrors, setChapterErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
-  const [continuation, setContinuation] = useState("");
-  const [aiPending, setAiPending] = useState(false);
-  const { cooldowns, startCooldown } = useAICooldown();
-
-  const continueChapter = async () => {
-    if (aiPending || cooldowns.continue > 0) {
-      return;
-    }
-
-    setAiPending(true);
-
-    try {
-      const result = await fetchAI({
-        operation: "continue",
-        title: storyDraft.title,
-        description: storyDraft.description,
-        chapterText
-      });
-
-      if (result.operation === "continue") {
-        setContinuation(result.suggestion);
-      }
-
-      startCooldown("continue");
-    } catch (error) {
-      onToast(error instanceof Error ? error.message : "AI временно недоступен.");
-    } finally {
-      setAiPending(false);
-    }
-  };
 
   const publishStory = async () => {
     setError("");
+    const nextErrors = Object.fromEntries(chapters.filter((chapter) => !chapter.content.trim()).map((chapter) => [chapter.clientId, "Текст главы обязателен."]));
+    setChapterErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length) {
+      setError("Заполните текст каждой главы.");
+      return;
+    }
+
     setPending(true);
 
     const response = await fetch("/api/stories", {
@@ -445,8 +327,7 @@ function ChapterEditor({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...storyDraft,
-        chapterTitle,
-        chapterContent: chapterText
+        chapters: chapters.map((chapter) => ({ title: chapter.title, content: chapter.content }))
       })
     });
     const result = (await response.json()) as { data?: { story?: { id: string } }; error?: { message: string } };
@@ -463,66 +344,17 @@ function ChapterEditor({
 
   return (
     <section className="space-y-6">
-      <Card className="p-5 md:p-6">
-        <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm font-medium text-primary">Шаг 2</p>
-            <h2 className="mt-1 text-2xl font-bold">Первая глава</h2>
-          </div>
-          <Badge>{chapterText.length.toLocaleString("ru-RU")} символов</Badge>
-        </div>
+      <div>
+        <p className="text-sm font-medium text-primary">Шаг 2</p>
+        <h2 className="mt-1 text-2xl font-bold">Главы произведения</h2>
+        <p className="mt-2 text-sm text-text-muted">Добавьте главы, расположите их в нужном порядке и подготовьте текст к публикации.</p>
+      </div>
 
-        <div className="space-y-4">
-          <Field label="Название главы">
-            <Input name="chapterTitle" onChange={(event) => setChapterTitle(event.target.value)} placeholder="Глава 1. Начало" value={chapterTitle} />
-          </Field>
-
-          <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-elevated p-2">
-            {toolbarItems.map((item) => (
-              <button
-                key={item.label}
-                aria-label={item.label}
-                className="grid h-9 w-9 place-items-center rounded-sm text-text-secondary transition duration-200 hover:bg-surface hover:text-primary"
-                type="button"
-              >
-                <item.icon size={17} />
-              </button>
-            ))}
-            <span className="mx-1 h-5 w-px bg-border" />
-            <Button disabled={aiPending || cooldowns.continue > 0} size="sm" type="button" variant="outline" onClick={() => void continueChapter()}>
-              <Sparkles size={16} />
-              {aiPending ? "Думаю..." : cooldowns.continue > 0 ? `Повторить через ${cooldowns.continue} сек` : "Продолжить"}
-            </Button>
-          </div>
-
-          <Textarea
-            className="min-h-[420px] text-base leading-8"
-            name="chapterText"
-            onChange={(event) => onChapterTextChange(event.target.value)}
-            placeholder="Начните писать первую главу..."
-            value={chapterText}
-          />
-          {continuation ? (
-            <AISuggestionPanel
-              actionLabel="Вставить продолжение"
-              onApply={() => {
-                onChapterTextChange(`${chapterText.trimEnd()}\n\n${continuation}`.trimStart());
-                setContinuation("");
-              }}
-            >
-              {continuation}
-            </AISuggestionPanel>
-          ) : null}
-        </div>
-      </Card>
+      <ChapterDraftsEditor chapters={chapters} description={storyDraft.description} errors={chapterErrors} onChange={onChange} onToast={(message) => onToast(message)} storyTitle={storyDraft.title} />
 
       {error ? <p className="rounded-md border border-border bg-surface px-4 py-3 text-sm text-primary">{error}</p> : null}
 
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <Button size="lg" variant="secondary" type="button" onClick={() => onToast()}>
-          <Save size={18} />
-          Сохранить черновик
-        </Button>
         <Button disabled={pending} size="lg" type="button" onClick={() => void publishStory()}>
           <Send size={18} />
           Опубликовать произведение
@@ -537,14 +369,14 @@ function CreationGuide({ step }: { step: 1 | 2 }) {
     <Card className="space-y-5 p-5">
       <div>
         <p className="text-sm font-semibold text-text-primary">Процесс публикации</p>
-        <p className="mt-2 text-sm leading-6 text-text-muted">Два спокойных шага: сначала карточка произведения, затем первая глава.</p>
+        <p className="mt-2 text-sm leading-6 text-text-muted">Два спокойных шага: сначала карточка произведения, затем главы.</p>
       </div>
       <div className="space-y-3">
         <GuideItem active={step === 1} done={step > 1} title="Информация" description="Название, описание, категории и метаданные." />
-        <GuideItem active={step === 2} done={false} title="Первая глава" description="Заголовок главы, текст и публикация." />
+        <GuideItem active={step === 2} done={false} title="Главы" description="Тексты, порядок глав и публикация." />
       </div>
       <div className="rounded-md border border-border bg-surface p-4 text-sm leading-6 text-text-muted">
-        Публикация создаст произведение и первую главу. Сохранение отдельного черновика будет подключено позже.
+        Произведение и все главы сохранятся вместе. Статус «Черновик» скроет работу от читателей.
       </div>
     </Card>
   );
@@ -649,33 +481,6 @@ function AISuggestionList({ items, onPick }: { items: string[]; onPick: (item: s
   );
 }
 
-function AISuggestionPanel({ actionLabel, children, onApply }: { actionLabel: string; children: string; onApply: () => void }) {
-  return (
-    <div className="space-y-3 rounded-md border border-border bg-surface p-4">
-      <p className="whitespace-pre-wrap text-sm leading-6 text-text-secondary">{children}</p>
-      <Button size="sm" type="button" variant="secondary" onClick={onApply}>
-        <Check size={15} />
-        {actionLabel}
-      </Button>
-    </div>
-  );
-}
-
-async function fetchAI(payload: { operation: AIOperation; title?: string; description?: string; genres?: string[]; tags?: string[]; chapterText?: string }) {
-  const response = await fetch("/api/ai", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-  const result = (await response.json()) as { data?: AIResult; error?: { message: string } };
-
-  if (!response.ok || !result.data) {
-    throw new Error(result.error?.message ?? "AI временно недоступен.");
-  }
-
-  return result.data;
-}
-
 function TitleSuggestionModal({
   cooldown,
   loading,
@@ -735,46 +540,11 @@ function TitleSuggestionModal({
   );
 }
 
-function useAICooldown() {
-  const [cooldowns, setCooldowns] = useState<Record<AIOperation, number>>({
-    title: 0,
-    description: 0,
-    tags: 0,
-    continue: 0
-  });
-
-  useEffect(() => {
-    if (!Object.values(cooldowns).some(Boolean)) {
-      return;
-    }
-
-    const intervalId = window.setInterval(() => {
-      setCooldowns((currentCooldowns) => ({
-        title: Math.max(currentCooldowns.title - 1, 0),
-        description: Math.max(currentCooldowns.description - 1, 0),
-        tags: Math.max(currentCooldowns.tags - 1, 0),
-        continue: Math.max(currentCooldowns.continue - 1, 0)
-      }));
-    }, AI_CONFIG.COOLDOWN_TICK_MS);
-
-    return () => window.clearInterval(intervalId);
-  }, [cooldowns]);
-
-  const startCooldown = (operation: AIOperation) => {
-    setCooldowns((currentCooldowns) => ({
-      ...currentCooldowns,
-      [operation]: Math.ceil(AI_CONFIG.AI_COOLDOWN_MS / 1000)
-    }));
-  };
-
-  return { cooldowns, startCooldown };
-}
-
 function StepTabs({ step }: { step: 1 | 2 }) {
   return (
     <div className="grid gap-3 md:grid-cols-2">
       <StepCard active={step === 1} done={step > 1} icon={FileText} title="1. Информация" />
-      <StepCard active={step === 2} done={false} icon={BookOpen} title="2. Первая глава" />
+      <StepCard active={step === 2} done={false} icon={BookOpen} title="2. Главы" />
     </div>
   );
 }
@@ -804,21 +574,6 @@ function GuideItem({ active, done, title, description }: { active: boolean; done
   );
 }
 
-const toolbarItems = [
-  { label: "Заголовок", icon: Heading2 },
-  { label: "Курсив", icon: Italic },
-  { label: "Список", icon: List },
-  { label: "Выравнивание", icon: AlignLeft }
-];
-
 function normalizeStatus(status: string) {
-  if (status === "completed" || status === "draft") {
-    return status;
-  }
-
-  return "ongoing";
-}
-
-function sanitizeFilename(filename: string) {
-  return filename.toLowerCase().replace(/[^a-z0-9._-]+/g, "-");
+  return isStoryStatus(status) ? status : "ongoing";
 }

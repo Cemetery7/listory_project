@@ -46,3 +46,10 @@ export class AITimeoutError extends Error {
     this.name = "AITimeoutError";
   }
 }
+
+export class AIRateLimitError extends Error {
+  constructor(message = "Бесплатная AI-модель достигла лимита запросов. Попробуйте позже.") {
+    super(message);
+    this.name = "AIRateLimitError";
+  }
+}

@@ -4,11 +4,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CalendarDays, UserRound } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
+import { getCurrentUser } from "@/lib/auth/session";
 import { getStoryById, isStoryCoverUrl } from "@/lib/stories/queries";
 import { AppShell } from "@/widgets/app-shell/app-shell";
+import { StoryActions } from "@/widgets/work/story-actions";
 import { Badge } from "@/shared/ui/badge";
 import { Card } from "@/shared/ui/card";
 import { cn } from "@/lib/utils";
+import { isStoryStatus, storyStatusLabel } from "@/lib/stories/status";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +33,8 @@ export async function generateMetadata({ params }: StoryPageProps): Promise<Meta
 
 export default async function Page({ params }: StoryPageProps) {
   const { id } = await params;
-  const story = await getStoryById(id);
+  const user = await getCurrentUser().catch(() => null);
+  const story = await getStoryById(id, user?.id);
 
   if (!story) {
     notFound();
@@ -47,7 +51,7 @@ export default async function Page({ params }: StoryPageProps) {
           </div>
           <div className="p-5 md:p-7">
             <div className="mb-4 flex flex-wrap gap-2">
-              <Badge>{statusLabel(story.status)}</Badge>
+              <Badge>{isStoryStatus(story.status) ? storyStatusLabel(story.status) : "В работе"}</Badge>
               <Badge>{story.chapters.length} глав</Badge>
             </div>
             <h1 className="text-4xl font-bold leading-tight md:text-5xl">{story.title}</h1>
@@ -61,6 +65,15 @@ export default async function Page({ params }: StoryPageProps) {
                 <CalendarDays size={16} />
                 {formatDate(story.createdAt)}
               </span>
+            </div>
+            <div className="mt-6 border-t border-border pt-5">
+              <StoryActions
+                authenticated={Boolean(user && user.status === "ACTIVE")}
+                commentsCount={story._count.comments}
+                initialLiked={story.likes.length > 0}
+                initialLikesCount={story._count.likes}
+                storyId={story.id}
+              />
             </div>
           </div>
         </Card>
@@ -83,18 +96,6 @@ export default async function Page({ params }: StoryPageProps) {
       </section>
     </AppShell>
   );
-}
-
-function statusLabel(status: string) {
-  if (status === "completed") {
-    return "Завершено";
-  }
-
-  if (status === "draft") {
-    return "Черновик";
-  }
-
-  return "В процессе";
 }
 
 function formatDate(date: Date) {
