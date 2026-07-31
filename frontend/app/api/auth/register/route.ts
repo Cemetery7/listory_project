@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { readJsonBody } from "@/lib/api/request";
 import { prisma } from "@/lib/prisma";
 import { setAuthCookie } from "@/lib/auth/cookies";
-import { createSessionToken } from "@/lib/auth/jwt";
+import { assertAuthConfigured, AuthConfigurationError, createSessionToken } from "@/lib/auth/jwt";
 import { hashPassword } from "@/lib/auth/password";
 import { errorResponse } from "@/lib/auth/responses";
 
@@ -38,33 +38,52 @@ export async function POST(request: Request) {
   }
 
   try {
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [{ email }, { username }]
+    assertAuthConfigured();
+    const passwordHash = await hashPassword(password);
+    const result = await prisma.$transaction(async (transaction) => {
+      const existingUser = await transaction.user.findFirst({
+        where: {
+          OR: [{ email }, { username }]
+        },
+        select: { id: true }
+      });
+
+      if (existingUser) {
+        return { kind: "exists" as const };
       }
+
+      const user = await transaction.user.create({
+        data: {
+          username,
+          email,
+          passwordHash
+        }
+      });
+      const token = await createSessionToken({
+        userId: user.id,
+        username: user.username,
+        email: user.email
+      });
+
+      return { kind: "created" as const, token, user };
     });
 
-    if (existingUser) {
+    if (result.kind === "exists") {
       return errorResponse("user_exists", "User with this email or username already exists.", 409);
     }
 
-    const user = await prisma.user.create({
-      data: {
-        username,
-        email,
-        passwordHash: await hashPassword(password)
-      }
-    });
-    const token = await createSessionToken({
-      userId: user.id,
-      username: user.username,
-      email: user.email
-    });
+    const { token, user } = result;
     const response = NextResponse.json({ data: { user: { id: user.id, username: user.username, email: user.email } } }, { status: 201 });
     setAuthCookie(response, token);
 
     return response;
-  } catch {
+  } catch (error) {
+    console.error("Registration failed", error);
+
+    if (error instanceof AuthConfigurationError) {
+      return errorResponse("auth_unavailable", "Авторизация временно недоступна. Обратитесь к администратору.", 503);
+    }
+
     return errorResponse("register_failed", "Не удалось создать аккаунт. Попробуйте позже.", 500);
   }
 }

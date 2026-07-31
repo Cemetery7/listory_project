@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { readJsonBody } from "@/lib/api/request";
 import { prisma } from "@/lib/prisma";
 import { setAuthCookie } from "@/lib/auth/cookies";
-import { createSessionToken } from "@/lib/auth/jwt";
+import { assertAuthConfigured, AuthConfigurationError, createSessionToken } from "@/lib/auth/jwt";
 import { verifyPassword } from "@/lib/auth/password";
 import { errorResponse } from "@/lib/auth/responses";
 
@@ -26,6 +26,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    assertAuthConfigured();
     const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user || !(await verifyPassword(password, user.passwordHash))) {
@@ -45,7 +46,13 @@ export async function POST(request: Request) {
     setAuthCookie(response, token);
 
     return response;
-  } catch {
+  } catch (error) {
+    console.error("Login failed", error);
+
+    if (error instanceof AuthConfigurationError) {
+      return errorResponse("auth_unavailable", "Авторизация временно недоступна. Обратитесь к администратору.", 503);
+    }
+
     return errorResponse("login_failed", "Не удалось войти. Попробуйте позже.", 500);
   }
 }

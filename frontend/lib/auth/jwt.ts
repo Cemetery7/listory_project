@@ -8,14 +8,25 @@ export type SessionPayload = {
 
 const encoder = new TextEncoder();
 
+export class AuthConfigurationError extends Error {
+  constructor() {
+    super("JWT_SECRET is not configured");
+    this.name = "AuthConfigurationError";
+  }
+}
+
 function getJwtSecret() {
-  const secret = process.env.JWT_SECRET;
+  const secret = process.env.JWT_SECRET?.trim();
 
   if (!secret) {
-    throw new Error("JWT_SECRET is not configured");
+    throw new AuthConfigurationError();
   }
 
   return encoder.encode(secret);
+}
+
+export function assertAuthConfigured() {
+  getJwtSecret();
 }
 
 export async function createSessionToken(payload: SessionPayload) {

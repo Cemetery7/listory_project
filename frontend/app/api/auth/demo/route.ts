@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createSessionToken } from "@/lib/auth/jwt";
+import { assertAuthConfigured, AuthConfigurationError, createSessionToken } from "@/lib/auth/jwt";
 import { hashPassword } from "@/lib/auth/password";
 import { setAuthCookie } from "@/lib/auth/cookies";
 import { errorResponse } from "@/lib/auth/responses";
 
 export async function POST() {
   try {
+    assertAuthConfigured();
     const passwordHash = await hashPassword("demo");
     const user = await prisma.user.upsert({
       where: { email: "demo@listoria.local" },
@@ -33,6 +34,11 @@ export async function POST() {
     return response;
   } catch (error) {
     console.error("Demo login failed", error);
+
+    if (error instanceof AuthConfigurationError) {
+      return errorResponse("auth_unavailable", "Авторизация временно недоступна. Обратитесь к администратору.", 503);
+    }
+
     return errorResponse("demo_login_failed", "Demo login failed.", 500);
   }
 }
