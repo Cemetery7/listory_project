@@ -45,17 +45,31 @@
   --shadow-floating: 0 20px 60px rgba(0, 0, 0, 0.24);
 }
 
+.reader-light {
+  --reader-text: #171b25;
+  background: #ffffff;
+  color: #171b25;
+}
+
+.reader-dark {
+  --reader-text: #e8eaf0;
+  background: #101521;
+  color: #ffffff;
+}
+
 * {
   box-sizing: border-box;
 }
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
   min-height: 100vh;
   margin: 0;
+  overflow-x: hidden;
   background: var(--background);
   color: var(--text-primary);
   font-family: Inter, system-ui, sans-serif;

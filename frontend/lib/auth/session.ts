@@ -25,11 +25,17 @@ export async function getCurrentUser() {
       email: true,
       avatar: true,
       bio: true,
+      role: true,
+      status: true,
+      blockedAt: true,
+      blockedReason: true,
       stories: {
         select: {
           id: true,
           title: true,
           status: true,
+          visibility: true,
+          createdAt: true,
           updatedAt: true
         },
         orderBy: {

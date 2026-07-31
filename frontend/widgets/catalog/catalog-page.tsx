@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useMemo, useTransition } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { LoaderCircle } from "lucide-react";
 import type { Work } from "@/entities/work/types";
 import { AppShell } from "@/widgets/app-shell/app-shell";
 import { StoryCard } from "@/entities/work/components/story-card";
@@ -10,20 +11,10 @@ import { Card } from "@/shared/ui/card";
 import { Tag } from "@/shared/ui/tag";
 import { FilterSidebar, type CatalogFilters } from "./filter-sidebar";
 
-const initialFilters: CatalogFilters = {
-  category: "all",
-  status: "all",
-  tag: "all",
-  sort: "popular"
-};
-
-export function CatalogPage({ works }: { works: Work[] }) {
-  const searchParams = useSearchParams();
-  const [filters, setFilters] = useState<CatalogFilters>(() => ({
-    ...initialFilters,
-    category: searchParams.get("category") ?? initialFilters.category,
-    tag: searchParams.get("tag") ?? initialFilters.tag
-  }));
+export function CatalogPage({ works, filters }: { works: Work[]; filters: CatalogFilters }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
   const filteredWorks = useMemo(() => {
     return works
@@ -33,38 +24,40 @@ export function CatalogPage({ works }: { works: Work[] }) {
         const matchesTag = filters.tag === "all" || work.tags.includes(filters.tag);
 
         return matchesCategory && matchesStatus && matchesTag;
-      })
-      .sort((left, right) => {
-        if (filters.sort === "views") {
-          return parseMetric(right.views) - parseMetric(left.views);
-        }
-
-        if (filters.sort === "likes") {
-          return parseMetric(right.likes) - parseMetric(left.likes);
-        }
-
-        if (filters.sort === "new" || filters.sort === "updated") {
-          return Number(right.id) - Number(left.id);
-        }
-
-        return right.rating - left.rating;
       });
-  }, [filters]);
+  }, [filters.category, filters.tag, works]);
+
+  const updateFilters = (nextFilters: CatalogFilters) => {
+    const params = new URLSearchParams();
+
+    if (nextFilters.query) params.set("q", nextFilters.query);
+    if (nextFilters.category !== "all") params.set("category", nextFilters.category);
+    if (nextFilters.status !== "all") params.set("status", nextFilters.status);
+    if (nextFilters.tag !== "all") params.set("tag", nextFilters.tag);
+    if (nextFilters.sort !== "new") params.set("sort", nextFilters.sort);
+
+    startTransition(() => {
+      router.replace(`${pathname}${params.size ? `?${params.toString()}` : ""}`, { scroll: false });
+    });
+  };
 
   return (
-    <AppShell rightPanel={<FilterSidebar filters={filters} onChange={setFilters} />}>
+    <AppShell rightPanel={<FilterSidebar filters={filters} onChange={updateFilters} />}>
       <section className="space-y-6">
         <div>
           <p className="text-sm font-medium text-primary">Каталог</p>
           <h1 className="mt-2 text-4xl font-bold leading-tight md:text-5xl">Найдите историю под настроение</h1>
-          <p className="mt-3 text-sm text-text-muted">Найдено произведений: {filteredWorks.length}</p>
+          <p className="mt-3 flex items-center gap-2 text-sm text-text-muted">
+            Найдено произведений: {filteredWorks.length}
+            {isPending ? <LoaderCircle aria-label="Загрузка" className="animate-spin text-primary" size={16} /> : null}
+          </p>
         </div>
 
         <Card className="p-4">
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-sm font-semibold text-text-primary">Сортировка</span>
             {sortOptions.map((sort) => (
-              <Tag key={sort.value} label={sort.label} active={filters.sort === sort.value} onClick={() => setFilters({ ...filters, sort: sort.value })} />
+              <Tag key={sort.value} label={sort.label} active={filters.sort === sort.value} onClick={() => updateFilters({ ...filters, sort: sort.value })} />
             ))}
           </div>
         </Card>
@@ -76,7 +69,10 @@ export function CatalogPage({ works }: { works: Work[] }) {
             ))}
           </div>
         ) : (
-          <EmptyState title="Произведений пока нет" description="Опубликуйте первую историю, и она появится в каталоге." />
+          <EmptyState
+            title={filters.query ? "Ничего не найдено" : "Произведений пока нет"}
+            description={filters.query ? `По запросу «${filters.query}» нет подходящих произведений. Попробуйте изменить запрос или фильтры.` : "Опубликуйте первую историю, и она появится в каталоге."}
+          />
         )}
       </section>
     </AppShell>
@@ -84,19 +80,6 @@ export function CatalogPage({ works }: { works: Work[] }) {
 }
 
 const sortOptions: Array<{ label: string; value: CatalogFilters["sort"] }> = [
-  { label: "Популярные", value: "popular" },
   { label: "Новые", value: "new" },
-  { label: "По просмотрам", value: "views" },
-  { label: "По лайкам", value: "likes" },
   { label: "По обновлению", value: "updated" }
 ];
-
-function parseMetric(value: string) {
-  const normalized = value.toUpperCase();
-
-  if (normalized.endsWith("K")) {
-    return Number(normalized.replace("K", "")) * 1000;
-  }
-
-  return Number(normalized);
-}

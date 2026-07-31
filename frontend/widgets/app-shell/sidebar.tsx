@@ -27,13 +27,14 @@ const navItems = [
   { label: "Подборки", icon: Library, href: "/#collections" },
   { label: "Авторы", icon: UsersRound, href: ROUTES.CATALOG },
   { label: "Фандомы", icon: Tags, href: ROUTES.CATALOG },
-  { label: "Библиотека", icon: Bookmark, href: ROUTES.PROFILE },
-  { label: "История", icon: Clock3, href: ROUTES.PROFILE }
+  { label: "Библиотека", icon: Bookmark, href: ROUTES.LIBRARY, match: ROUTES.LIBRARY },
+  { label: "История", icon: Clock3, href: ROUTES.HISTORY, match: ROUTES.HISTORY }
 ];
 
 const bottomItems = [
   { label: "Написать", icon: PenLine, href: ROUTES.CREATE },
-  { label: "Настройки", icon: Settings, href: ROUTES.PROFILE },
+  { label: "Мои работы", icon: Library, href: ROUTES.MY_WORKS },
+  { label: "Настройки", icon: Settings, href: ROUTES.SETTINGS },
   { label: "Профиль", icon: UserRound, href: ROUTES.PROFILE }
 ];
 
@@ -56,7 +57,7 @@ export function Sidebar() {
       {mobileOpen ? (
         <div className="fixed inset-0 z-50 lg:hidden">
           <button aria-label="Закрыть меню" className="absolute inset-0 bg-background/70 backdrop-blur-sm" onClick={() => setMobileOpen(false)} type="button" />
-          <aside className="relative h-full w-[280px] overflow-y-auto border-r border-border bg-surface px-6 py-6 shadow-floating">
+          <aside className="relative h-full w-[min(280px,calc(100vw-24px))] overflow-y-auto border-r border-border bg-surface px-4 py-4 shadow-floating sm:px-6 sm:py-6">
             <div className="mb-5 flex justify-end">
               <button
                 aria-label="Закрыть меню"
@@ -146,7 +147,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         {bottomItems.map((item) => (
           <Link
             key={item.label}
-            className="flex h-12 items-center gap-3 rounded-md px-4 text-sm font-medium text-text-secondary transition duration-200 hover:bg-elevated hover:text-text-primary"
+            className={cn(
+              "flex h-12 items-center gap-3 rounded-md px-4 text-sm font-medium text-text-secondary transition duration-200 hover:bg-elevated hover:text-text-primary",
+              pathname.startsWith(item.href) && "bg-primary text-white shadow-hero hover:bg-primary hover:text-white"
+            )}
             href={item.href}
             onClick={onNavigate}
           >

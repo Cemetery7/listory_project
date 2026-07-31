@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import { getStoryById } from "@/lib/stories/queries";
 import { AppShell } from "@/widgets/app-shell/app-shell";
-import { Card } from "@/shared/ui/card";
+import { ChapterReader } from "@/widgets/reader/chapter-reader";
 
 export const dynamic = "force-dynamic";
 
@@ -42,17 +42,13 @@ export default async function Page({ params }: ReaderPageProps) {
 
   return (
     <AppShell>
-      <article className="mx-auto max-w-3xl space-y-6">
+      <article className="mx-auto max-w-5xl space-y-6">
         <Link className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primary-hover" href={ROUTES.work(story.id)}>
           <ArrowLeft size={16} />
           К произведению
         </Link>
 
-        <Card className="p-5 md:p-8">
-          <p className="text-sm font-medium text-primary">{story.title}</p>
-          <h1 className="mt-2 text-3xl font-bold leading-tight md:text-4xl">{chapter.title}</h1>
-          <div className="mt-8 whitespace-pre-wrap text-base leading-8 text-text-primary">{chapter.content}</div>
-        </Card>
+        <ChapterReader chapterTitle={chapter.title} content={chapter.content} storyTitle={story.title} />
 
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
           {previousChapter ? (

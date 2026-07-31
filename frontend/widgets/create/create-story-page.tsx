@@ -1,8 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlignLeft, BookOpen, Check, FileText, Heading2, ImagePlus, Italic, List, Save, Send, Sparkles } from "lucide-react";
+import { upload } from "@vercel/blob/client";
+import { AlignLeft, BookOpen, Check, FileText, Heading2, ImagePlus, Italic, List, Save, Send, Sparkles, X } from "lucide-react";
 import { AppShell } from "@/widgets/app-shell/app-shell";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
@@ -25,6 +27,7 @@ type StoryDraft = {
   title: string;
   description: string;
   status: string;
+  cover: string | null;
 };
 
 export function CreateStoryPage() {
@@ -32,7 +35,8 @@ export function CreateStoryPage() {
   const [storyDraft, setStoryDraft] = useState<StoryDraft>({
     title: "",
     description: "",
-    status: "ongoing"
+    status: "ongoing",
+    cover: null
   });
   const [chapterText, setChapterText] = useState("");
   const [toastVisible, setToastVisible] = useState(false);
@@ -52,7 +56,7 @@ export function CreateStoryPage() {
           <div>
             <h1 className="text-4xl font-bold leading-tight md:text-5xl">Создание произведения</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-text-muted">
-              Заполните карточку истории, затем сразу переходите к первой главе. Данные пока не отправляются на сервер.
+              Заполните карточку истории, затем переходите к первой главе и публикации.
             </p>
           </div>
           <StepTabs step={step} />
@@ -94,7 +98,38 @@ function StoryInfoForm({
   const [descriptionSuggestion, setDescriptionSuggestion] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
   const [loadingOperation, setLoadingOperation] = useState<AIOperation | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState(initialDraft.cover ?? "");
+  const [coverPending, setCoverPending] = useState(false);
   const { cooldowns, startCooldown } = useAICooldown();
+
+  useEffect(() => {
+    if (!coverFile) {
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(coverFile);
+    setCoverPreview(previewUrl);
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [coverFile]);
+
+  const selectCover = (file?: File) => {
+    if (!file) {
+      return;
+    }
+
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      onToast("Выберите изображение JPEG, PNG или WebP.");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      onToast("Размер обложки не должен превышать 5 МБ.");
+      return;
+    }
+
+    setCoverFile(file);
+  };
 
   const requestAI = async (operation: AIOperation) => {
     if (loadingOperation || cooldowns[operation] > 0) {
@@ -145,27 +180,90 @@ function StoryInfoForm({
   return (
     <form
       className="space-y-6"
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault();
         const formData = new FormData(event.currentTarget);
+        let cover = initialDraft.cover;
+
+        if (coverFile) {
+          setCoverPending(true);
+
+          try {
+            const blob = await upload(`covers/${sanitizeFilename(coverFile.name)}`, coverFile, {
+              access: "public",
+              handleUploadUrl: "/api/uploads/cover"
+            });
+            cover = blob.url;
+          } catch {
+            onToast("Не удалось загрузить обложку. Проверьте настройку Vercel Blob.");
+            setCoverPending(false);
+            return;
+          }
+
+          setCoverPending(false);
+        }
 
         onNext({
           title: title.trim(),
           description: description.trim(),
-          status: normalizeStatus(String(formData.get("status") ?? "ongoing"))
+          status: normalizeStatus(String(formData.get("status") ?? "ongoing")),
+          cover: coverPreview ? cover : null
         });
       }}
     >
       <Card className="p-5 md:p-6">
         <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
-          <label className="group flex min-h-[300px] cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-border bg-elevated px-5 text-center transition duration-200 hover:border-[color:var(--border-hover)]">
-            <span className="grid h-14 w-14 place-items-center rounded-md bg-primary/15 text-primary">
-              <ImagePlus size={24} />
-            </span>
-            <span className="mt-4 text-sm font-semibold text-text-primary">Обложка</span>
-            <span className="mt-2 text-xs leading-5 text-text-muted">PNG или JPG. Загрузка будет подключена позже.</span>
-            <input className="sr-only" type="file" accept="image/png,image/jpeg" />
-          </label>
+          <div className="relative min-h-[300px] overflow-hidden rounded-lg border border-dashed border-border bg-elevated">
+            {coverPreview ? (
+              <>
+                <Image alt="Предпросмотр обложки" className="object-cover" fill sizes="220px" src={coverPreview} unoptimized={coverPreview.startsWith("blob:")} />
+                <div className="absolute inset-x-0 bottom-0 flex items-center gap-2 bg-background/80 p-3 backdrop-blur-[16px]">
+                  <label className="inline-flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-white">
+                    <ImagePlus size={16} />
+                    Заменить
+                    <input
+                      accept="image/jpeg,image/png,image/webp"
+                      className="sr-only"
+                      onChange={(event) => {
+                        selectCover(event.target.files?.[0]);
+                        event.target.value = "";
+                      }}
+                      type="file"
+                    />
+                  </label>
+                  <button
+                    aria-label="Удалить обложку"
+                    className="grid h-10 w-10 place-items-center rounded-md border border-border bg-surface text-text-secondary transition hover:text-primary"
+                    onClick={() => {
+                      setCoverFile(null);
+                      setCoverPreview("");
+                    }}
+                    title="Удалить обложку"
+                    type="button"
+                  >
+                    <X size={17} />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <label className="group flex min-h-[300px] cursor-pointer flex-col items-center justify-center px-5 text-center transition duration-200 hover:bg-surface">
+                <span className="grid h-14 w-14 place-items-center rounded-md bg-primary/15 text-primary">
+                  <ImagePlus size={24} />
+                </span>
+                <span className="mt-4 text-sm font-semibold text-text-primary">Обложка</span>
+                <span className="mt-2 text-xs leading-5 text-text-muted">JPEG, PNG или WebP, до 5 МБ.</span>
+                <input
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  onChange={(event) => {
+                    selectCover(event.target.files?.[0]);
+                    event.target.value = "";
+                  }}
+                  type="file"
+                />
+              </label>
+            )}
+          </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <Field
@@ -271,8 +369,8 @@ function StoryInfoForm({
       </Card>
 
       <div className="flex justify-end">
-        <Button size="lg" type="submit">
-          Перейти к первой главе
+        <Button disabled={coverPending} size="lg" type="submit">
+          {coverPending ? "Загружаем обложку..." : "Перейти к первой главе"}
           <BookOpen size={18} />
         </Button>
       </div>
@@ -446,7 +544,7 @@ function CreationGuide({ step }: { step: 1 | 2 }) {
         <GuideItem active={step === 2} done={false} title="Первая глава" description="Заголовок главы, текст и публикация." />
       </div>
       <div className="rounded-md border border-border bg-surface p-4 text-sm leading-6 text-text-muted">
-        Сохранение и публикация пока показывают уведомление. Подключение API запланировано на следующий Sprint.
+        Публикация создаст произведение и первую главу. Сохранение отдельного черновика будет подключено позже.
       </div>
     </Card>
   );
@@ -719,4 +817,8 @@ function normalizeStatus(status: string) {
   }
 
   return "ongoing";
+}
+
+function sanitizeFilename(filename: string) {
+  return filename.toLowerCase().replace(/[^a-z0-9._-]+/g, "-");
 }

@@ -18,6 +18,10 @@ export async function POST() {
       }
     });
 
+    if (user.status === "BLOCKED") {
+      return errorResponse("account_blocked", "Demo-аккаунт заблокирован.", 403);
+    }
+
     const token = await createSessionToken({
       userId: user.id,
       username: user.username,
@@ -27,7 +31,8 @@ export async function POST() {
     setAuthCookie(response, token);
 
     return response;
-  } catch {
+  } catch (error) {
+    console.error("Demo login failed", error);
     return errorResponse("demo_login_failed", "Demo login failed.", 500);
   }
 }

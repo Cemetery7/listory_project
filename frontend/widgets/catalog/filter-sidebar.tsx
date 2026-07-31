@@ -3,12 +3,14 @@
 import { BookOpen, SlidersHorizontal, Sparkles, Tags } from "lucide-react";
 import { Card } from "@/shared/ui/card";
 import { Tag } from "@/shared/ui/tag";
+import type { StorySort } from "@/lib/stories/queries";
 
 export type CatalogFilters = {
+  query: string;
   category: string;
   status: "all" | "ongoing" | "completed";
   tag: string;
-  sort: "popular" | "new" | "views" | "likes" | "updated";
+  sort: StorySort;
 };
 
 type FilterSidebarProps = {

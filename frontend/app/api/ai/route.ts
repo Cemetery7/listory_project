@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { readJsonBody } from "@/lib/api/request";
 import { errorResponse } from "@/lib/auth/responses";
+import { authorizeActiveUser } from "@/lib/auth/authorization";
 import { AI_CONFIG } from "@/lib/ai/config";
 import { getAIProvider } from "@/lib/ai/provider";
 import { checkAIRateLimit } from "@/lib/ai/rate-limit";
@@ -11,6 +12,12 @@ type AIPayload = AIRequestInput & {
 };
 
 export async function POST(request: Request) {
+  const authorization = await authorizeActiveUser();
+
+  if ("response" in authorization) {
+    return authorization.response;
+  }
+
   const payload = await readJsonBody<AIPayload>(request);
 
   if (!payload) {
@@ -30,7 +37,7 @@ export async function POST(request: Request) {
     return errorResponse("validation_error", validationError, 422);
   }
 
-  const rateLimit = checkAIRateLimit(getClientKey(request), operation);
+  const rateLimit = checkAIRateLimit(authorization.user.id, operation);
 
   if (!rateLimit.allowed) {
     return errorResponse("rate_limited", "Слишком много AI-запросов. Попробуйте немного позже.", 429);
@@ -96,10 +103,6 @@ function validatePayload(operation: AIOperation, payload: AIRequestInput) {
   }
 
   return "";
-}
-
-function getClientKey(request: Request) {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "local";
 }
 
 function isAIOperation(operation?: string): operation is AIOperation {

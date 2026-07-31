@@ -4,41 +4,66 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client"
-  output   = "../frontend/generated/prisma"
+  provider            = "prisma-client"
+  output              = "../frontend/generated/prisma"
+  importFileExtension = "ts"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id           String   @id @default(uuid()) @db.Uuid
-  username     String   @unique @db.VarChar(64)
-  email        String   @unique @db.VarChar(255)
-  passwordHash String   @map("password_hash")
-  avatar       String?
-  bio          String?
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-  stories      Story[]
+enum UserRole {
+  USER
+  ADMIN
+}
 
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+}
+
+enum StoryVisibility {
+  PUBLIC
+  HIDDEN
+}
+
+model User {
+  id            String          @id @default(uuid()) @db.Uuid
+  username      String          @unique @db.VarChar(64)
+  email         String          @unique @db.VarChar(255)
+  passwordHash  String          @map("password_hash")
+  avatar        String?
+  bio           String?
+  role          UserRole        @default(USER)
+  status        UserStatus      @default(ACTIVE)
+  blockedAt     DateTime?       @map("blocked_at") @db.Timestamptz(6)
+  blockedReason String?         @map("blocked_reason")
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  stories       Story[]
+  adminActions  AdminAuditLog[] @relation("AdminActor")
+
+  @@index([role])
+  @@index([status])
   @@map("users")
 }
 
 model Story {
-  id          String    @id @default(uuid()) @db.Uuid
+  id          String          @id @default(uuid()) @db.Uuid
   title       String
   description String
   cover       String?
-  status      String    @default("draft")
-  authorId    String    @map("author_id") @db.Uuid
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  status      String          @default("draft")
+  visibility  StoryVisibility @default(PUBLIC)
+  authorId    String          @map("author_id") @db.Uuid
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  author      User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
   chapters    Chapter[]
 
   @@index([authorId])
+  @@index([visibility])
   @@map("stories")
 }
 
@@ -54,4 +79,19 @@ model Chapter {
 
   @@index([storyId])
   @@map("chapters")
+}
+
+model AdminAuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String   @map("actor_id") @db.Uuid
+  action     String
+  targetType String   @map("target_type")
+  targetId   String   @map("target_id")
+  details    Json?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  actor      User     @relation("AdminActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("admin_audit_logs")
 }

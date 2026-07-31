@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ROUTES } from "@/constants/routes";
+import { readApiError } from "@/lib/api/request";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Toast } from "@/shared/ui/toast";
@@ -26,25 +27,31 @@ export function RegisterForm({ nextPath }: { nextPath?: string }) {
         event.preventDefault();
         const formData = new FormData(event.currentTarget);
         setPending(true);
-        const response = await fetch("/api/auth/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            username: formData.get("username") ?? "",
-            email: formData.get("email") ?? "",
-            password: formData.get("password") ?? "",
-            repeatPassword: formData.get("repeatPassword") ?? ""
-          })
-        });
-        setPending(false);
 
-        if (!response.ok) {
-          showMessage("Не удалось создать аккаунт. Проверьте поля.");
-          return;
+        try {
+          const response = await fetch("/api/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              username: formData.get("username") ?? "",
+              email: formData.get("email") ?? "",
+              password: formData.get("password") ?? "",
+              repeatPassword: formData.get("repeatPassword") ?? ""
+            })
+          });
+
+          if (!response.ok) {
+            showMessage(await readApiError(response, "Не удалось создать аккаунт. Проверьте поля."));
+            return;
+          }
+
+          router.push(nextPath ?? ROUTES.HOME);
+          router.refresh();
+        } catch {
+          showMessage("Сервер недоступен. Проверьте соединение и попробуйте снова.");
+        } finally {
+          setPending(false);
         }
-
-        router.push(nextPath ?? ROUTES.HOME);
-        router.refresh();
       }}
     >
       <Input autoComplete="username" name="username" placeholder="Имя пользователя" />
@@ -52,7 +59,7 @@ export function RegisterForm({ nextPath }: { nextPath?: string }) {
       <Input autoComplete="new-password" name="password" placeholder="Пароль" type="password" />
       <Input autoComplete="new-password" name="repeatPassword" placeholder="Повторите пароль" type="password" />
       <Button className="w-full" disabled={pending} size="lg" type="submit">
-        Создать аккаунт
+        {pending ? "Создаём аккаунт..." : "Создать аккаунт"}
       </Button>
       <Toast message={message} visible={toastVisible} />
     </form>

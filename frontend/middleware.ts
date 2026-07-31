@@ -30,9 +30,18 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/create/:path*", "/profile/:path*", "/edit/:path*", "/works/:path*"]
+  matcher: ["/create/:path*", "/profile/:path*", "/library/:path*", "/history/:path*", "/my-works/:path*", "/settings/:path*", "/admin/:path*", "/edit/:path*", "/works/:path*"]
 };
 
 export function shouldProtectPath(pathname: string) {
-  return pathname.startsWith("/create") || pathname.startsWith("/profile") || isProtectedEditRoute(pathname);
+  return (
+    pathname.startsWith("/create") ||
+    pathname.startsWith("/profile") ||
+    pathname.startsWith("/library") ||
+    pathname.startsWith("/history") ||
+    pathname.startsWith("/my-works") ||
+    pathname.startsWith("/settings") ||
+    pathname.startsWith("/admin") ||
+    isProtectedEditRoute(pathname)
+  );
 }

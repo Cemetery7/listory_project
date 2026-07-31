@@ -32,6 +32,10 @@ export async function POST(request: Request) {
       return errorResponse("invalid_credentials", "Invalid email or password.", 401);
     }
 
+    if (user.status === "BLOCKED") {
+      return errorResponse("account_blocked", "Аккаунт заблокирован.", 403);
+    }
+
     const token = await createSessionToken({
       userId: user.id,
       username: user.username,

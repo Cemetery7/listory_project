@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ROUTES } from "@/constants/routes";
+import { readApiError } from "@/lib/api/request";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Toast } from "@/shared/ui/toast";
@@ -21,20 +22,26 @@ export function LoginForm({ nextPath }: { nextPath?: string }) {
 
   const submit = async (endpoint: string, body?: Record<string, FormDataEntryValue>) => {
     setPending(true);
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: body ? { "Content-Type": "application/json" } : undefined,
-      body: body ? JSON.stringify(body) : undefined
-    });
-    setPending(false);
 
-    if (!response.ok) {
-      showMessage("Не удалось выполнить вход. Проверьте данные.");
-      return;
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined
+      });
+
+      if (!response.ok) {
+        showMessage(await readApiError(response, "Не удалось выполнить вход. Проверьте данные."));
+        return;
+      }
+
+      router.push(nextPath ?? ROUTES.HOME);
+      router.refresh();
+    } catch {
+      showMessage("Сервер недоступен. Проверьте соединение и попробуйте снова.");
+    } finally {
+      setPending(false);
     }
-
-    router.push(nextPath ?? ROUTES.HOME);
-    router.refresh();
   };
 
   return (
@@ -52,10 +59,10 @@ export function LoginForm({ nextPath }: { nextPath?: string }) {
       <Input autoComplete="email" name="email" placeholder="Email" type="email" />
       <Input autoComplete="current-password" name="password" placeholder="Пароль" type="password" />
       <Button className="w-full" disabled={pending} size="lg" type="submit">
-        Войти
+        {pending ? "Входим..." : "Войти"}
       </Button>
       <Button className="w-full" disabled={pending} onClick={() => void submit("/api/auth/demo")} size="lg" type="button" variant="secondary">
-        Войти как Demo
+        {pending ? "Подождите..." : "Войти как Demo"}
       </Button>
       <Toast message={message} visible={toastVisible} />
     </form>

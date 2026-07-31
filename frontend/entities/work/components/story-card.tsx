@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Eye, Heart, MessageCircle, Star } from "lucide-react";
 import type { Work } from "@/entities/work/types";
@@ -15,6 +16,7 @@ export function StoryCard({ work }: StoryCardProps) {
     <Link aria-label={`Открыть произведение ${work.title}`} className="block h-full" href={ROUTES.work(work.id)}>
       <Card className="group flex h-[372px] flex-col overflow-hidden" interactive>
         <div className={cn("relative h-36 shrink-0", work.coverClass)}>
+          {work.coverUrl ? <Image alt="" className="object-cover" fill sizes="(max-width: 640px) 100vw, 50vw" src={work.coverUrl} /> : null}
           <div className="absolute inset-0 bg-gradient-to-t from-black/38 to-transparent transition duration-200 group-hover:from-black/24" />
           <Badge className="absolute left-4 top-4 border-white/16 bg-black/20 text-white backdrop-blur-[16px]">
             {work.status === "completed" ? "Завершено" : "В процессе"}

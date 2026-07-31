@@ -9,7 +9,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:status": "prisma migrate status",
-    "prisma:seed": "prisma db seed"
+    "prisma:seed": "prisma db seed",
+    "admin:promote": "node --env-file=.env --experimental-strip-types prisma/promote-admin.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
@@ -19,9 +20,6 @@
     "jose": "^5.10.0",
     "pg": "^8.22.0",
     "prisma": "^7.8.0"
-  },
-  "prisma": {
-    "seed": "node --experimental-strip-types prisma/seed.ts"
   },
   "devDependencies": {
     "next": "15.5.18"

@@ -10,7 +10,7 @@ type AppShellProps = {
 
 export function AppShell({ children, rightPanel }: AppShellProps) {
   return (
-    <div className="min-h-screen bg-background text-text-primary">
+    <div className="min-h-screen overflow-x-hidden bg-background text-text-primary">
       <Sidebar />
       <Header />
       <main className="pt-[72px] lg:pl-[280px]">

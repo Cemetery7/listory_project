@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CalendarDays, UserRound } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
-import { getStoryById } from "@/lib/stories/queries";
+import { getStoryById, isStoryCoverUrl } from "@/lib/stories/queries";
 import { AppShell } from "@/widgets/app-shell/app-shell";
 import { Badge } from "@/shared/ui/badge";
 import { Card } from "@/shared/ui/card";
@@ -35,11 +36,15 @@ export default async function Page({ params }: StoryPageProps) {
     notFound();
   }
 
+  const coverUrl = isStoryCoverUrl(story.cover) ? story.cover : null;
+
   return (
     <AppShell>
       <section className="space-y-6">
         <Card className="overflow-hidden">
-          <div className={cn("h-64", story.cover ?? "cover-aurora")} />
+          <div className={cn("relative h-64", coverUrl ? "bg-elevated" : story.cover ?? "cover-aurora")}>
+            {coverUrl ? <Image alt={`Обложка произведения «${story.title}»`} className="object-cover" fill priority sizes="(max-width: 1024px) 100vw, 900px" src={coverUrl} /> : null}
+          </div>
           <div className="p-5 md:p-7">
             <div className="mb-4 flex flex-wrap gap-2">
               <Badge>{statusLabel(story.status)}</Badge>

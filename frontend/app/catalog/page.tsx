@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
-import { getPublishedStories } from "@/lib/stories/queries";
+import { getPublishedStories, type StorySort } from "@/lib/stories/queries";
 import { CatalogPage } from "@/widgets/catalog/catalog-page";
+import type { CatalogFilters } from "@/widgets/catalog/filter-sidebar";
 
 export const metadata: Metadata = {
   title: "Каталог | Листория",
@@ -10,12 +10,42 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function Page() {
-  const works = await getPublishedStories();
+type CatalogPageProps = {
+  searchParams: Promise<{
+    q?: string;
+    category?: string;
+    status?: string;
+    tag?: string;
+    sort?: string;
+  }>;
+};
 
-  return (
-    <Suspense fallback={null}>
-      <CatalogPage works={works} />
-    </Suspense>
-  );
+export default async function Page({ searchParams }: CatalogPageProps) {
+  const params = await searchParams;
+  const filters: CatalogFilters = {
+    query: params.q?.trim() ?? "",
+    category: params.category ?? "all",
+    status: normalizeStatus(params.status),
+    tag: params.tag ?? "all",
+    sort: normalizeSort(params.sort)
+  };
+  const works = await getPublishedStories({
+    query: filters.query || undefined,
+    status: filters.status === "all" ? undefined : filters.status,
+    sort: filters.sort
+  });
+
+  return <CatalogPage filters={filters} works={works} />;
+}
+
+function normalizeStatus(status?: string): CatalogFilters["status"] {
+  if (status === "ongoing" || status === "completed") {
+    return status;
+  }
+
+  return "all";
+}
+
+function normalizeSort(sort?: string): StorySort {
+  return sort === "updated" ? "updated" : "new";
 }

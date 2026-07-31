@@ -2,6 +2,7 @@
   "name": "listoria-frontend",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate --schema ../prisma/schema.prisma && next build",
@@ -12,6 +13,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "@vercel/blob": "^2.6.1",
     "clsx": "^2.1.1",
     "bcryptjs": "^2.4.3",
     "framer-motion": "^11.18.2",

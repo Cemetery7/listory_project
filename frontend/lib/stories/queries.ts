@@ -3,6 +3,14 @@ import { prisma } from "@/lib/prisma";
 
 const coverClasses = ["cover-aurora", "cover-neon", "cover-coast", "cover-spring"];
 
+export type StorySort = "new" | "updated";
+
+export type StoryQuery = {
+  query?: string;
+  status?: "ongoing" | "completed";
+  sort?: StorySort;
+};
+
 type StoryWithAuthorAndChapters = {
   id: string;
   title: string;
@@ -23,12 +31,15 @@ type StoryWithAuthorAndChapters = {
 };
 
 export function mapStoryToWork(story: StoryWithAuthorAndChapters): Work {
+  const coverUrl = isStoryCoverUrl(story.cover) ? story.cover : null;
+
   return {
     id: story.id,
     title: story.title,
     slug: story.id,
     description: story.description,
-    coverClass: story.cover ?? coverClasses[Math.abs(hashId(story.id)) % coverClasses.length],
+    coverUrl,
+    coverClass: coverUrl ? coverClasses[0] : story.cover ?? coverClasses[Math.abs(hashId(story.id)) % coverClasses.length],
     author: story.author.username,
     category: "Оригинальные",
     fandom: "Авторский мир",
@@ -43,9 +54,47 @@ export function mapStoryToWork(story: StoryWithAuthorAndChapters): Work {
   };
 }
 
-export async function getPublishedStories() {
+export function isStoryCoverUrl(cover: string | null): cover is string {
+  if (!cover) {
+    return false;
+  }
+
+  try {
+    const url = new URL(cover);
+    return url.protocol === "https:" && url.hostname.endsWith(".public.blob.vercel-storage.com");
+  } catch {
+    return false;
+  }
+}
+
+export async function getPublishedStories(options: StoryQuery = {}) {
+  const query = options.query?.trim();
   const stories = await prisma.story.findMany({
-    orderBy: { createdAt: "desc" },
+    where: {
+      visibility: "PUBLIC",
+      status: options.status ?? { in: ["ongoing", "completed"] },
+      ...(query
+        ? {
+            OR: [
+              {
+                title: {
+                  contains: query,
+                  mode: "insensitive" as const
+                }
+              },
+              {
+                author: {
+                  username: {
+                    contains: query,
+                    mode: "insensitive" as const
+                  }
+                }
+              }
+            ]
+          }
+        : {})
+    },
+    orderBy: options.sort === "updated" ? { updatedAt: "desc" } : { createdAt: "desc" },
     include: {
       author: {
         select: { username: true }
@@ -66,8 +115,11 @@ export async function getPublishedStories() {
 }
 
 export async function getStoryById(id: string) {
-  return prisma.story.findUnique({
-    where: { id },
+  return prisma.story.findFirst({
+    where: {
+      id,
+      visibility: "PUBLIC"
+    },
     include: {
       author: {
         select: {

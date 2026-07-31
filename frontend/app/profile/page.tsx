@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ROUTES } from "@/constants/routes";
-import { getCurrentUser } from "@/lib/auth/session";
+import { requireUserPage } from "@/lib/auth/user-page";
 import { AppShell } from "@/widgets/app-shell/app-shell";
 import { Badge } from "@/shared/ui/badge";
 import { Card } from "@/shared/ui/card";
@@ -15,11 +14,8 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
-  const user = await getCurrentUser();
-
-  if (!user) {
-    redirect("/login");
-  }
+  const user = await requireUserPage(ROUTES.PROFILE);
+  const publishedStories = user.stories.filter((story) => story.status !== "draft" && story.visibility === "PUBLIC");
 
   return (
     <AppShell>
@@ -39,19 +35,24 @@ export default async function Page() {
         </div>
 
         <Card className="p-5 md:p-6">
-          <h2 className="text-2xl font-bold">Мои произведения</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-2xl font-bold">Опубликованные произведения</h2>
+            <Link className="text-sm font-semibold text-primary hover:text-primary-hover" href={ROUTES.MY_WORKS}>
+              Все мои работы
+            </Link>
+          </div>
           <div className="mt-5">
-            {user.stories.length > 0 ? (
+            {publishedStories.length > 0 ? (
               <div className="space-y-3">
-                {user.stories.map((story) => (
-                  <div key={story.id} className="rounded-md border border-border bg-surface p-4">
+                {publishedStories.map((story) => (
+                  <Link href={ROUTES.work(story.id)} key={story.id} className="block rounded-md border border-border bg-surface p-4 transition hover:border-[color:var(--border-hover)]">
                     <p className="font-semibold text-text-primary">{story.title}</p>
                     <p className="mt-1 text-sm text-text-muted">{story.status}</p>
-                  </div>
+                  </Link>
                 ))}
               </div>
             ) : (
-              <EmptyState title="Произведений пока нет" description="Редактор уже готов к следующему Sprint, но создание пока не подключено к базе." />
+              <EmptyState title="Опубликованных произведений пока нет" description="Черновики и скрытые работы доступны в разделе «Мои работы»." />
             )}
           </div>
         </Card>

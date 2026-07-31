@@ -5,3 +5,14 @@ export async function readJsonBody<T>(request: Request): Promise<T | null> {
     return null;
   }
 }
+
+type ApiErrorPayload = {
+  error?: {
+    message?: string;
+  };
+};
+
+export async function readApiError(response: Response, fallback: string) {
+  const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
+  return payload?.error?.message ?? fallback;
+}

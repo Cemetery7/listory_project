@@ -5,6 +5,7 @@ export type Work = {
   title: string;
   slug: string;
   description: string;
+  coverUrl: string | null;
   coverClass: string;
   author: string;
   category: string;
