@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { upload } from "@vercel/blob/client";
+import { uploadPresigned } from "@vercel/blob/client";
 import { ImagePlus, X } from "lucide-react";
 import { useState } from "react";
 
@@ -31,7 +31,7 @@ export function StoryCoverField({ value, onChange, onPendingChange, onToast }: {
     onPendingChange?.(true);
 
     try {
-      const blob = await upload(`covers/${sanitizeFilename(file.name)}`, file, {
+      const blob = await uploadPresigned(`covers/${sanitizeFilename(file.name)}`, file, {
         access: "public",
         handleUploadUrl: "/api/uploads/cover"
       });

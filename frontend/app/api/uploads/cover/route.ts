@@ -1,4 +1,5 @@
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import { issueSignedToken } from "@vercel/blob";
+import { handleUploadPresigned, type HandleUploadPresignedBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 import { authorizeActiveUser } from "@/lib/auth/authorization";
 import { errorResponse } from "@/lib/auth/responses";
@@ -14,32 +15,36 @@ export async function POST(request: Request) {
   }
 
   const user = authorization.user;
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    return errorResponse("cover_upload_unavailable", "Загрузка обложек временно недоступна.", 503);
-  }
-
-  let body: HandleUploadBody;
+  let body: HandleUploadPresignedBody;
 
   try {
-    body = (await request.json()) as HandleUploadBody;
+    body = (await request.json()) as HandleUploadPresignedBody;
   } catch {
     return errorResponse("invalid_json", "Некорректный запрос загрузки.", 400);
   }
 
   try {
-    const response = await handleUpload({
+    const response = await handleUploadPresigned({
       body,
       request,
-      onBeforeGenerateToken: async (pathname) => {
+      getSignedToken: async (pathname) => {
         if (!pathname.startsWith("covers/")) {
           throw new Error("Недопустимый путь загрузки.");
         }
 
         return {
-          allowedContentTypes,
-          maximumSizeInBytes,
-          addRandomSuffix: true,
-          tokenPayload: user.id
+          token: await issueSignedToken({
+            pathname,
+            operations: ["put"],
+            allowedContentTypes,
+            maximumSizeInBytes
+          }),
+          urlOptions: {
+            allowedContentTypes,
+            maximumSizeInBytes,
+            addRandomSuffix: true,
+            tokenPayload: user.id
+          }
         };
       }
     });
