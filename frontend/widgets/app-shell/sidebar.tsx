@@ -90,7 +90,12 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex min-h-full flex-col">
-      <div className="mb-8 flex items-center gap-3">
+      <Link
+        aria-label="Перейти на главную страницу Листории"
+        className="mb-8 flex min-h-11 items-center gap-3 rounded-md transition duration-200 hover:bg-elevated hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-primary"
+        href={ROUTES.HOME}
+        onClick={onNavigate}
+      >
         <Image
           alt="Листория"
           className="h-11 w-11 shrink-0 object-contain"
@@ -103,7 +108,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           <p className="text-lg font-bold leading-tight">Листория</p>
           <p className="text-xs text-text-muted">Истории рядом</p>
         </div>
-      </div>
+      </Link>
 
       <nav className="flex flex-col gap-2">
         {navItems.map((item) => {

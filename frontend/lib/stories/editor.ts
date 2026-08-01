@@ -1,4 +1,5 @@
 import { isStoryStatus, type StoryStatus } from "@/lib/stories/status";
+import { hasMeaningfulMarkdownContent } from "@/lib/chapters/markdown";
 
 export type StoryChapterInput = {
   id?: string;
@@ -51,8 +52,8 @@ export function parseStoryEditorPayload(value: unknown): ParseResult {
     const title = readTrimmedString(item.title) || `Глава ${index + 1}`;
     const content = readTrimmedString(item.content);
 
-    if (!content) {
-      return { error: `Текст главы ${index + 1} обязателен.` };
+    if (!hasMeaningfulMarkdownContent(content)) {
+      return { error: `Добавьте текст главы ${index + 1}, а не только разметку.` };
     }
 
     chapters.push({ id, title, content });

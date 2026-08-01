@@ -18,6 +18,7 @@ import { AISuggestionPanel, fetchAI, useAICooldown } from "@/widgets/story-edito
 import { ChapterDraftsEditor, createChapterDraft, type ChapterDraft } from "@/widgets/story-editor/chapter-drafts-editor";
 import { StoryCoverField } from "@/widgets/story-editor/story-cover-field";
 import { cn } from "@/lib/utils";
+import { hasMeaningfulMarkdownContent } from "@/lib/chapters/markdown";
 
 const notice = "Функция будет подключена в следующем Sprint.";
 
@@ -327,7 +328,7 @@ function CreateChaptersStep({
 
   const publishStory = async () => {
     setError("");
-    const nextErrors = Object.fromEntries(chapters.filter((chapter) => !chapter.content.trim()).map((chapter) => [chapter.clientId, "Текст главы обязателен."]));
+    const nextErrors = Object.fromEntries(chapters.filter((chapter) => !hasMeaningfulMarkdownContent(chapter.content)).map((chapter) => [chapter.clientId, "Добавьте текст главы, а не только разметку."]));
     setChapterErrors(nextErrors);
 
     if (Object.keys(nextErrors).length) {

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { AlignJustify, Minus, Moon, Plus, Sun } from "lucide-react";
+import { ChapterContent } from "@/entities/chapter/components/chapter-content";
 import { cn } from "@/lib/utils";
 import { Card } from "@/shared/ui/card";
 
@@ -43,7 +44,6 @@ const widthClasses: Record<ReaderWidth, string> = {
 
 export function ChapterReader({ chapterTitle, content, storyTitle }: ChapterReaderProps) {
   const [preferences, setPreferences] = useState<ReaderPreferences>(defaultPreferences);
-  const paragraphs = useMemo(() => content.split(/\n\s*\n/).filter((paragraph) => paragraph.trim().length > 0), [content]);
 
   useEffect(() => {
     const savedPreferences = window.localStorage.getItem(storageKey);
@@ -145,13 +145,7 @@ export function ChapterReader({ chapterTitle, content, storyTitle }: ChapterRead
       <Card className={cn("p-5 transition-colors md:p-8", preferences.theme === "dark" ? "reader-dark" : "reader-light")}>
         <p className="text-sm font-medium text-primary">{storyTitle}</p>
         <h1 className="mt-2 text-3xl font-bold leading-tight md:text-4xl">{chapterTitle}</h1>
-        <div className={cn("mt-8 space-y-5 text-[color:var(--reader-text)]", fontClasses[preferences.fontSize])}>
-          {paragraphs.map((paragraph, index) => (
-            <p className="whitespace-pre-wrap" key={`${index}-${paragraph.slice(0, 24)}`}>
-              {paragraph}
-            </p>
-          ))}
-        </div>
+        <ChapterContent className={cn("mt-8 text-[color:var(--reader-text)]", fontClasses[preferences.fontSize])} content={content} />
       </Card>
     </section>
   );

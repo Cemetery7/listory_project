@@ -15,6 +15,7 @@ import { Input } from "@/shared/ui/input";
 import { Select } from "@/shared/ui/select";
 import { Textarea } from "@/shared/ui/textarea";
 import { Toast } from "@/shared/ui/toast";
+import { hasMeaningfulMarkdownContent } from "@/lib/chapters/markdown";
 
 type EditableStory = {
   id: string;
@@ -49,7 +50,7 @@ export function EditStoryPage({ initialStory }: { initialStory: EditableStory })
   };
 
   const save = async () => {
-    const nextErrors = Object.fromEntries(chapters.filter((chapter) => !chapter.content.trim()).map((chapter) => [chapter.clientId, "Текст главы обязателен."]));
+    const nextErrors = Object.fromEntries(chapters.filter((chapter) => !hasMeaningfulMarkdownContent(chapter.content)).map((chapter) => [chapter.clientId, "Добавьте текст главы, а не только разметку."]));
     setChapterErrors(nextErrors);
     setError("");
 

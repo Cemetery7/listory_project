@@ -49,16 +49,16 @@ export function Header() {
         >
           <Menu size={20} />
         </button>
-        <Link className="hidden shrink-0 items-center sm:flex" href={ROUTES.HOME} aria-label="Листория">
+        <div aria-hidden="true" className="hidden shrink-0 items-center sm:flex">
           <Image
-            alt="Листория"
+            alt=""
             className="h-8 w-8 object-contain md:h-9 md:w-9"
             height={44}
             priority
             src="/brand/logo-icon.png"
             width={44}
           />
-        </Link>
+        </div>
         <div className="hidden min-w-[140px] text-sm text-text-muted md:block">Главная / Обзор</div>
         <form className="group flex h-[52px] min-w-0 flex-1 items-center gap-3 rounded-md border border-border bg-surface px-3 transition duration-200 focus-within:border-primary focus-within:shadow-hero sm:px-4" onSubmit={submitSearch}>
           <button
