@@ -21,7 +21,9 @@ type StoryWithAuthorAndChapters = {
   createdAt: Date;
   updatedAt: Date;
   author: {
+    id: string;
     username: string;
+    avatar: string | null;
   };
   chapters: Array<{
     id: string;
@@ -46,7 +48,9 @@ export function mapStoryToWork(story: StoryWithAuthorAndChapters): Work {
     description: story.description,
     coverUrl,
     coverClass: coverUrl ? coverClasses[0] : story.cover ?? coverClasses[Math.abs(hashId(story.id)) % coverClasses.length],
+    authorId: story.author.id,
     author: story.author.username,
+    authorAvatar: story.author.avatar,
     category: "Оригинальные",
     fandom: "Авторский мир",
     status: isStoryStatus(story.status) ? story.status : "ongoing",
@@ -79,6 +83,7 @@ export async function getPublishedStories(options: StoryQuery = {}) {
     where: {
       visibility: "PUBLIC",
       status: options.status ?? { in: ["ongoing", "completed"] },
+      author: { status: "ACTIVE" },
       ...(query
         ? {
             OR: [
@@ -103,7 +108,7 @@ export async function getPublishedStories(options: StoryQuery = {}) {
     orderBy: options.sort === "updated" ? { updatedAt: "desc" } : { createdAt: "desc" },
     include: {
       author: {
-        select: { username: true }
+        select: { id: true, username: true, avatar: true }
       },
       chapters: {
         orderBy: { order: "asc" },
@@ -134,12 +139,15 @@ export async function getStoryById(id: string, viewerId?: string) {
     where: {
       id,
       visibility: "PUBLIC",
-      status: { in: ["ongoing", "completed"] }
+      status: { in: ["ongoing", "completed"] },
+      author: { status: "ACTIVE" }
     },
     include: {
       author: {
         select: {
-          username: true
+          id: true,
+          username: true,
+          avatar: true
         }
       },
       chapters: {

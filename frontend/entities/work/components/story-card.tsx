@@ -9,13 +9,13 @@ import { Card } from "@/shared/ui/card";
 
 type StoryCardProps = {
   work: Work;
+  compact?: boolean;
 };
 
-export function StoryCard({ work }: StoryCardProps) {
+export function StoryCard({ work, compact = false }: StoryCardProps) {
   return (
-    <Link aria-label={`Открыть произведение ${work.title}`} className="block h-full" href={ROUTES.work(work.id)}>
-      <Card className="group flex h-[372px] flex-col overflow-hidden" interactive>
-        <div className={cn("relative h-36 shrink-0", work.coverClass)}>
+    <Card className={cn("group flex flex-col overflow-hidden", compact ? "h-[352px]" : "h-[372px]")} interactive>
+        <Link aria-label={`Открыть произведение ${work.title}`} className={cn("relative h-36 shrink-0", work.coverClass)} href={ROUTES.work(work.id)}>
           {work.coverUrl ? <Image alt="" className="object-cover" fill sizes="(max-width: 640px) 100vw, 50vw" src={work.coverUrl} /> : null}
           <div className="absolute inset-0 bg-gradient-to-t from-black/38 to-transparent transition duration-200 group-hover:from-black/24" />
           <Badge className="absolute left-4 top-4 border-white/16 bg-black/20 text-white backdrop-blur-[16px]">
@@ -25,11 +25,13 @@ export function StoryCard({ work }: StoryCardProps) {
             <Star size={16} />
             {work.rating}
           </div>
-        </div>
+        </Link>
 
         <div className="flex min-h-0 flex-1 flex-col p-4">
           <p className="mb-2 text-xs font-medium text-primary">{work.category}</p>
-          <h3 className="line-clamp-2 text-lg font-bold leading-tight">{work.title}</h3>
+          <h3 className="line-clamp-2 text-lg font-bold leading-tight">
+            <Link className="transition hover:text-primary" href={ROUTES.work(work.id)}>{work.title}</Link>
+          </h3>
           <p className="mt-2 line-clamp-2 text-sm leading-6 text-text-secondary">{work.description}</p>
 
           <div className="mt-3 flex h-7 flex-wrap gap-2 overflow-hidden">
@@ -39,7 +41,10 @@ export function StoryCard({ work }: StoryCardProps) {
           </div>
 
           <div className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-3 text-xs text-text-muted">
-            <span className="truncate">{work.author}</span>
+            <Link className="flex min-w-0 items-center gap-2 truncate transition hover:text-primary" href={ROUTES.author(work.authorId)}>
+              {work.authorAvatar ? <Image alt="" className="h-5 w-5 rounded-full object-cover" height={20} src={work.authorAvatar} width={20} /> : null}
+              <span className="truncate">{work.author}</span>
+            </Link>
             <div className="flex items-center gap-3">
               <span className="inline-flex items-center gap-1">
                 <Eye size={14} />
@@ -56,7 +61,6 @@ export function StoryCard({ work }: StoryCardProps) {
             </div>
           </div>
         </div>
-      </Card>
-    </Link>
+    </Card>
   );
 }

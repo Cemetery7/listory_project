@@ -28,24 +28,36 @@ enum StoryVisibility {
   HIDDEN
 }
 
+enum NotificationType {
+  NEW_FOLLOWER
+  STORY_LIKED
+  STORY_COMMENTED
+  COMMENT_REPLIED
+  AUTHOR_PUBLISHED
+}
+
 model User {
-  id            String          @id @default(uuid()) @db.Uuid
-  username      String          @unique @db.VarChar(64)
-  email         String          @unique @db.VarChar(255)
-  passwordHash  String          @map("password_hash")
-  avatar        String?
-  bio           String?
-  role          UserRole        @default(USER)
-  status        UserStatus      @default(ACTIVE)
-  blockedAt     DateTime?       @map("blocked_at") @db.Timestamptz(6)
-  blockedReason String?         @map("blocked_reason")
-  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
-  stories       Story[]
-  likes         StoryLike[]
-  comments      Comment[]
-  storyViews    StoryView[]
-  adminActions  AdminAuditLog[] @relation("AdminActor")
+  id                  String          @id @default(uuid()) @db.Uuid
+  username            String          @unique @db.VarChar(64)
+  email               String          @unique @db.VarChar(255)
+  passwordHash        String          @map("password_hash")
+  avatar              String?
+  bio                 String?
+  role                UserRole        @default(USER)
+  status              UserStatus      @default(ACTIVE)
+  blockedAt           DateTime?       @map("blocked_at") @db.Timestamptz(6)
+  blockedReason       String?         @map("blocked_reason")
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  stories             Story[]
+  likes               StoryLike[]
+  comments            Comment[]
+  storyViews          StoryView[]
+  adminActions        AdminAuditLog[] @relation("AdminActor")
+  following           AuthorFollow[]  @relation("UserFollowing")
+  followers           AuthorFollow[]  @relation("UserFollowers")
+  notifications       Notification[]  @relation("ReceivedNotifications")
+  notificationActions Notification[]  @relation("NotificationActor")
 
   @@index([role])
   @@index([status])
@@ -53,20 +65,21 @@ model User {
 }
 
 model Story {
-  id          String          @id @default(uuid()) @db.Uuid
-  title       String
-  description String
-  cover       String?
-  status      String          @default("draft")
-  visibility  StoryVisibility @default(PUBLIC)
-  authorId    String          @map("author_id") @db.Uuid
-  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
-  author      User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  chapters    Chapter[]
-  likes       StoryLike[]
-  comments    Comment[]
-  views       StoryView[]
+  id            String          @id @default(uuid()) @db.Uuid
+  title         String
+  description   String
+  cover         String?
+  status        String          @default("draft")
+  visibility    StoryVisibility @default(PUBLIC)
+  authorId      String          @map("author_id") @db.Uuid
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  author        User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  chapters      Chapter[]
+  likes         StoryLike[]
+  comments      Comment[]
+  views         StoryView[]
+  notifications Notification[]
 
   @@index([authorId])
   @@index([visibility])
@@ -74,18 +87,18 @@ model Story {
 }
 
 model Chapter {
-  id        String   @id @default(uuid()) @db.Uuid
-  storyId   String   @map("story_id") @db.Uuid
+  id        String    @id @default(uuid()) @db.Uuid
+  storyId   String    @map("story_id") @db.Uuid
   title     String
   content   String
   order     Int
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  story     Story     @relation(fields: [storyId], references: [id], onDelete: Cascade)
   comments  Comment[]
 
-  @@index([storyId])
   @@unique([storyId, order])
+  @@index([storyId])
   @@map("chapters")
 }
 
@@ -114,26 +127,64 @@ model StoryView {
 }
 
 model Comment {
-  id        String    @id @default(uuid()) @db.Uuid
-  storyId   String    @map("story_id") @db.Uuid
-  chapterId String?   @map("chapter_id") @db.Uuid
-  authorId  String    @map("author_id") @db.Uuid
-  parentId  String?   @map("parent_id") @db.Uuid
-  content   String
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
-  story     Story     @relation(fields: [storyId], references: [id], onDelete: Cascade)
-  chapter   Chapter?  @relation(fields: [chapterId], references: [id], onDelete: SetNull)
-  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
-  replies   Comment[] @relation("CommentReplies")
+  id            String         @id @default(uuid()) @db.Uuid
+  storyId       String         @map("story_id") @db.Uuid
+  chapterId     String?        @map("chapter_id") @db.Uuid
+  authorId      String         @map("author_id") @db.Uuid
+  parentId      String?        @map("parent_id") @db.Uuid
+  content       String
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt     DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  story         Story          @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  chapter       Chapter?       @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  author        User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent        Comment?       @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies       Comment[]      @relation("CommentReplies")
+  notifications Notification[]
 
   @@index([storyId, createdAt])
   @@index([chapterId])
   @@index([authorId])
   @@index([parentId])
   @@map("comments")
+}
+
+model AuthorFollow {
+  followerId String   @map("follower_id") @db.Uuid
+  authorId   String   @map("author_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  follower User @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  author   User @relation("UserFollowers", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, authorId])
+  @@index([authorId, createdAt])
+  @@index([followerId, createdAt])
+  @@map("author_follows")
+}
+
+model Notification {
+  id          String           @id @default(uuid()) @db.Uuid
+  recipientId String           @map("recipient_id") @db.Uuid
+  actorId     String?          @map("actor_id") @db.Uuid
+  storyId     String?          @map("story_id") @db.Uuid
+  commentId   String?          @map("comment_id") @db.Uuid
+  type        NotificationType
+  dedupeKey   String           @unique @map("dedupe_key")
+  readAt      DateTime?        @map("read_at") @db.Timestamptz(6)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  recipient User     @relation("ReceivedNotifications", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor     User?    @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  story     Story?   @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, readAt, createdAt])
+  @@index([recipientId, createdAt])
+  @@index([actorId])
+  @@index([storyId])
+  @@map("notifications")
 }
 
 model AdminAuditLog {

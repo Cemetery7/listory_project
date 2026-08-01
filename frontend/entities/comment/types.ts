@@ -8,4 +8,5 @@ export type StoryComment = {
     username: string;
     avatar: string | null;
   };
+  replies?: StoryComment[];
 };

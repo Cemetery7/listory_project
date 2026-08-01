@@ -11,7 +11,7 @@ import { Card } from "@/shared/ui/card";
 import { Textarea } from "@/shared/ui/textarea";
 import { Toast } from "@/shared/ui/toast";
 
-export function CommentEditor({ storyId, authenticated }: { storyId: string; authenticated: boolean }) {
+export function CommentEditor({ storyId, authenticated, parentId, embedded = false, onSubmitted }: { storyId: string; authenticated: boolean; parentId?: string; embedded?: boolean; onSubmitted?: () => void }) {
   const router = useRouter();
   const [content, setContent] = useState("");
   const [pending, setPending] = useState(false);
@@ -50,6 +50,7 @@ export function CommentEditor({ storyId, authenticated }: { storyId: string; aut
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           story_id: storyId,
+          parent_id: parentId,
           content: normalizedContent
         })
       });
@@ -60,6 +61,7 @@ export function CommentEditor({ storyId, authenticated }: { storyId: string; aut
       }
 
       setContent("");
+      onSubmitted?.();
       router.refresh();
     } catch {
       showMessage("Сервер недоступен. Попробуйте ещё раз.");
@@ -75,16 +77,16 @@ export function CommentEditor({ storyId, authenticated }: { storyId: string; aut
   };
 
   return (
-    <Card className="p-5 md:p-6">
+    <Card className={embedded ? "border-0 bg-transparent p-0 shadow-none" : "p-5 md:p-6"}>
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-xl font-bold">Оставить комментарий</h2>
+        <h2 className={embedded ? "text-sm font-semibold" : "text-xl font-bold"}>{parentId ? "Ответить" : "Оставить комментарий"}</h2>
         <span className="text-xs text-text-muted">{content.length}/2000</span>
       </div>
-      <Textarea className="mt-4 min-h-32" maxLength={2000} onChange={(event) => setContent(event.target.value)} placeholder="Поделитесь впечатлением о произведении..." value={content} />
+      <Textarea className={embedded ? "mt-3 min-h-24" : "mt-4 min-h-32"} maxLength={2000} onChange={(event) => setContent(event.target.value)} placeholder={parentId ? "Напишите ответ..." : "Поделитесь впечатлением о произведении..."} value={content} />
       <div className="mt-4 flex justify-end">
         <Button disabled={pending || !content.trim()} onClick={() => void submitComment()} type="button">
           <Send size={17} />
-          {pending ? "Отправляем..." : "Опубликовать"}
+          {pending ? "Отправляем..." : parentId ? "Ответить" : "Опубликовать"}
         </Button>
       </div>
       <Toast message={message} visible={toastVisible} />

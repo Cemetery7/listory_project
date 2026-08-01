@@ -7,7 +7,9 @@ export type Work = {
   description: string;
   coverUrl: string | null;
   coverClass: string;
+  authorId: string;
   author: string;
+  authorAvatar: string | null;
   category: string;
   fandom: string;
   status: WorkStatus;

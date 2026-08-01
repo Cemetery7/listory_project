@@ -4,8 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, LoaderCircle, Menu, Search, UserRound } from "lucide-react";
+import { LoaderCircle, Menu, Search, UserRound } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
+import { NotificationBell } from "@/features/notifications/notification-bell";
 import { ThemeToggle } from "./theme-toggle";
 
 export function Header() {
@@ -79,13 +80,7 @@ export function Header() {
           <span className="hidden rounded-xs border border-border px-2 py-1 text-xs text-text-muted sm:block">Ctrl K</span>
         </form>
         <ThemeToggle />
-        <button
-          aria-label="Уведомления"
-          className="hidden h-11 w-11 place-items-center rounded-md border border-border bg-surface text-text-secondary transition duration-200 hover:border-[color:var(--border-hover)] hover:text-text-primary sm:grid"
-          type="button"
-        >
-          <Bell size={18} />
-        </button>
+        <NotificationBell />
         <Link className="hidden h-11 items-center gap-3 rounded-md border border-border bg-surface px-3 text-sm font-medium transition duration-200 hover:border-[color:var(--border-hover)] md:flex" href={ROUTES.PROFILE}>
           <span className="grid h-7 w-7 place-items-center rounded-full bg-primary text-xs text-white">ДБ</span>
           Демо

@@ -51,7 +51,7 @@ export default async function Page({ params }: CommentsPageProps) {
         </header>
 
         <CommentEditor authenticated={Boolean(user && user.status === "ACTIVE")} storyId={id} />
-        <CommentList comments={result.comments} />
+        <CommentList authenticated={Boolean(user && user.status === "ACTIVE")} comments={result.comments} storyId={id} />
       </section>
     </AppShell>
   );

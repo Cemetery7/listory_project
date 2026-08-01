@@ -57,10 +57,10 @@ export default async function Page({ params }: StoryPageProps) {
             <h1 className="text-4xl font-bold leading-tight md:text-5xl">{story.title}</h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-text-secondary">{story.description}</p>
             <div className="mt-5 flex flex-wrap gap-4 text-sm text-text-muted">
-              <span className="inline-flex items-center gap-2">
+              <Link className="inline-flex items-center gap-2 transition hover:text-primary" href={ROUTES.author(story.author.id)}>
                 <UserRound size={16} />
                 {story.author.username}
-              </span>
+              </Link>
               <span className="inline-flex items-center gap-2">
                 <CalendarDays size={16} />
                 {formatDate(story.createdAt)}

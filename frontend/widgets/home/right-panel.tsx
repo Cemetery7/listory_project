@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Clock3, Flame, PenLine, Sparkles } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import type { Work } from "@/entities/work/types";
@@ -8,7 +9,7 @@ const categories = ["Оригинальные", "В процессе", "Заве
 const tags = ["в процессе", "завершено", "черновик"];
 
 export function RightPanel({ works }: { works: Work[] }) {
-  const authors = Array.from(new Set(works.map((work) => work.author))).slice(0, 3);
+  const authors = Array.from(new Map(works.map((work) => [work.authorId, { id: work.authorId, username: work.author, avatar: work.authorAvatar }])).values()).slice(0, 3);
   const updates = works.slice(0, 3);
 
   return (
@@ -20,15 +21,15 @@ export function RightPanel({ works }: { works: Work[] }) {
         </div>
         <div className="space-y-4">
           {authors.length > 0 ? authors.map((author) => (
-            <div key={author} className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-full bg-primary text-xs font-bold text-white">{author.slice(0, 2).toUpperCase()}</div>
+            <Link href={ROUTES.author(author.id)} key={author.id} className="flex items-center gap-3 rounded-md transition hover:text-primary">
+              {author.avatar ? <Image alt="" className="h-10 w-10 rounded-full object-cover" height={40} src={author.avatar} width={40} /> : <div className="grid h-10 w-10 place-items-center rounded-full bg-primary text-xs font-bold text-white">{author.username.slice(0, 2).toUpperCase()}</div>}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold">{author}</p>
+                <p className="truncate text-sm font-semibold">{author.username}</p>
                 <p className="text-xs text-text-muted">
                   Автор Листории
                 </p>
               </div>
-            </div>
+            </Link>
           )) : <p className="text-sm leading-6 text-text-muted">Авторы появятся после первой публикации.</p>}
         </div>
       </section>

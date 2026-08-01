@@ -3,6 +3,7 @@ import { authorizeActiveUser } from "@/lib/auth/authorization";
 import { errorResponse, successResponse } from "@/lib/auth/responses";
 import { isUuid } from "@/lib/api/validation";
 import { prisma } from "@/lib/prisma";
+import { notifyStoryLiked } from "@/lib/notifications/service";
 
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   return setLike(await params, true);
@@ -24,8 +25,8 @@ async function setLike({ id }: { id: string }, liked: boolean) {
   }
 
   const story = await prisma.story.findFirst({
-    where: { id, visibility: "PUBLIC" },
-    select: { id: true }
+    where: { id, visibility: "PUBLIC", status: { in: ["ongoing", "completed"] }, author: { status: "ACTIVE" } },
+    select: { id: true, authorId: true }
   });
 
   if (!story) {
@@ -34,19 +35,17 @@ async function setLike({ id }: { id: string }, liked: boolean) {
 
   const likesCount = await prisma.$transaction(async (transaction) => {
     if (liked) {
-      await transaction.storyLike.upsert({
-        where: {
-          userId_storyId: {
-            userId: authorization.user.id,
-            storyId: id
-          }
-        },
-        update: {},
-        create: {
+      const created = await transaction.storyLike.createMany({
+        data: [{
           userId: authorization.user.id,
           storyId: id
-        }
+        }],
+        skipDuplicates: true
       });
+
+      if (created.count === 1) {
+        await notifyStoryLiked(transaction, authorization.user.id, story.authorId, id);
+      }
     } else {
       await transaction.storyLike.deleteMany({
         where: {
@@ -62,6 +61,7 @@ async function setLike({ id }: { id: string }, liked: boolean) {
   revalidatePath("/");
   revalidatePath("/catalog");
   revalidatePath(`/works/${id}`);
+  revalidatePath(`/authors/${story.authorId}`);
 
   return successResponse({ liked, likes_count: likesCount });
 }

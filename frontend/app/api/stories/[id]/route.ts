@@ -4,6 +4,7 @@ import { authorizeStoryAuthor } from "@/lib/auth/authorization";
 import { errorResponse, successResponse } from "@/lib/auth/responses";
 import { prisma } from "@/lib/prisma";
 import { parseStoryEditorPayload } from "@/lib/stories/editor";
+import { notifyAuthorPublished } from "@/lib/notifications/service";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -84,6 +85,13 @@ export async function PATCH(request: Request, context: RouteContext) {
           cover: parsed.data.cover
         }
       });
+
+      const wasPublished = authorization.story.visibility === "PUBLIC" && ["ongoing", "completed"].includes(authorization.story.status);
+      const isPublished = authorization.story.visibility === "PUBLIC" && ["ongoing", "completed"].includes(parsed.data.status);
+
+      if (!wasPublished && isPublished) {
+        await notifyAuthorPublished(transaction, authorization.user.id, id);
+      }
     });
 
     revalidatePath("/");
@@ -91,6 +99,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     revalidatePath("/my-works");
     revalidatePath(`/works/${id}`);
     revalidatePath(`/works/${id}/edit`);
+    revalidatePath(`/authors/${authorization.user.id}`);
 
     return successResponse({ story: { id } });
   } catch {

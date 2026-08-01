@@ -4,6 +4,7 @@ import { isUuid } from "@/lib/api/validation";
 import { authorizeActiveUser } from "@/lib/auth/authorization";
 import { errorResponse, successResponse } from "@/lib/auth/responses";
 import { prisma } from "@/lib/prisma";
+import { notifyCommentReplied, notifyStoryCommented } from "@/lib/notifications/service";
 
 type CreateCommentPayload = {
   story_id?: string;
@@ -34,8 +35,8 @@ export async function POST(request: Request) {
   }
 
   const story = await prisma.story.findFirst({
-    where: { id: storyId, visibility: "PUBLIC" },
-    select: { id: true }
+    where: { id: storyId, visibility: "PUBLIC", status: { in: ["ongoing", "completed"] }, author: { status: "ACTIVE" } },
+    select: { id: true, authorId: true }
   });
 
   if (!story) {
@@ -50,34 +51,47 @@ export async function POST(request: Request) {
     }
   }
 
-  if (parentId) {
-    const parentExists = await prisma.comment.count({ where: { id: parentId, storyId, deletedAt: null } });
+  const parent = parentId
+    ? await prisma.comment.findFirst({
+        where: { id: parentId, storyId, deletedAt: null },
+        select: { id: true, authorId: true }
+      })
+    : null;
 
-    if (!parentExists) {
-      return errorResponse("comment_not_found", "Родительский комментарий не найден.", 404);
-    }
+  if (parentId && !parent) {
+    return errorResponse("comment_not_found", "Родительский комментарий не найден.", 404);
   }
 
-  const comment = await prisma.comment.create({
-    data: {
-      storyId,
-      chapterId,
-      parentId,
-      authorId: authorization.user.id,
-      content
-    },
-    select: {
-      id: true,
-      content: true,
-      createdAt: true,
-      author: {
-        select: {
-          id: true,
-          username: true,
-          avatar: true
+  const comment = await prisma.$transaction(async (transaction) => {
+    const createdComment = await transaction.comment.create({
+      data: {
+        storyId,
+        chapterId,
+        parentId,
+        authorId: authorization.user.id,
+        content
+      },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        author: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true
+          }
         }
       }
+    });
+
+    if (parent) {
+      await notifyCommentReplied(transaction, authorization.user.id, parent.authorId, storyId, createdComment.id);
+    } else {
+      await notifyStoryCommented(transaction, authorization.user.id, story.authorId, storyId, createdComment.id);
     }
+
+    return createdComment;
   });
 
   revalidatePath("/");

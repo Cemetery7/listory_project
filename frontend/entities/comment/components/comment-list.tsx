@@ -2,7 +2,7 @@ import { MessageCircle } from "lucide-react";
 import type { StoryComment } from "@/entities/comment/types";
 import { CommentCard } from "./comment-card";
 
-export function CommentList({ comments }: { comments: StoryComment[] }) {
+export function CommentList({ comments, authenticated, storyId }: { comments: StoryComment[]; authenticated: boolean; storyId: string }) {
   if (comments.length === 0) {
     return (
       <div className="flex min-h-56 flex-col items-center justify-center rounded-lg border border-border bg-card px-6 py-10 text-center shadow-card">
@@ -18,7 +18,7 @@ export function CommentList({ comments }: { comments: StoryComment[] }) {
   return (
     <div className="space-y-3">
       {comments.map((comment) => (
-        <CommentCard comment={comment} key={comment.id} />
+        <CommentCard authenticated={authenticated} comment={comment} key={comment.id} storyId={storyId} />
       ))}
     </div>
   );

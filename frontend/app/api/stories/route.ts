@@ -6,6 +6,7 @@ import { errorResponse, successResponse } from "@/lib/auth/responses";
 import { getPublishedStories, type StorySort } from "@/lib/stories/queries";
 import { parseStoryEditorPayload } from "@/lib/stories/editor";
 import { isStoryStatus } from "@/lib/stories/status";
+import { notifyAuthorPublished } from "@/lib/notifications/service";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -68,6 +69,10 @@ export async function POST(request: Request) {
           order: index + 1
         }))
       });
+
+      if (status === "ongoing" || status === "completed") {
+        await notifyAuthorPublished(transaction, user.id, createdStory.id);
+      }
 
       return createdStory;
     });

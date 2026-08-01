@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, Check, FileText, Send, Sparkles } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, FileText, Send, Sparkles } from "lucide-react";
 import { AppShell } from "@/widgets/app-shell/app-shell";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
@@ -30,6 +30,14 @@ type StoryDraft = {
   description: string;
   status: StoryStatus;
   cover: string | null;
+  category: string;
+  ageRating: string;
+  language: string;
+  fandom: string;
+  characters: string;
+  pairings: string;
+  genres: string[];
+  tags: string[];
 };
 
 export function CreateStoryPage() {
@@ -38,7 +46,15 @@ export function CreateStoryPage() {
     title: "",
     description: "",
     status: "ongoing",
-    cover: null
+    cover: null,
+    category: "",
+    ageRating: "12+",
+    language: "Русский",
+    fandom: "",
+    characters: "",
+    pairings: "",
+    genres: ["Романтика", "Драма"],
+    tags: ["slow burn", "уют"]
   });
   const [chapters, setChapters] = useState<ChapterDraft[]>(() => [createChapterDraft(1)]);
   const [toastVisible, setToastVisible] = useState(false);
@@ -74,7 +90,7 @@ export function CreateStoryPage() {
             }}
           />
         ) : (
-          <CreateChaptersStep chapters={chapters} onChange={setChapters} onToast={showToast} storyDraft={storyDraft} />
+          <CreateChaptersStep chapters={chapters} onBack={() => setStep(1)} onChange={setChapters} onToast={showToast} storyDraft={storyDraft} />
         )}
       </div>
       <Toast message={toastMessage} visible={toastVisible} />
@@ -93,9 +109,9 @@ function StoryInfoForm({
 }) {
   const [title, setTitle] = useState(initialDraft.title);
   const [description, setDescription] = useState(initialDraft.description);
-  const [selectedGenres, setSelectedGenres] = useState<string[]>(["Романтика", "Драма"]);
-  const [selectedTags, setSelectedTags] = useState<string[]>(["slow burn", "уют"]);
-  const [tagItems, setTagItems] = useState(tagOptions);
+  const [selectedGenres, setSelectedGenres] = useState<string[]>(initialDraft.genres);
+  const [selectedTags, setSelectedTags] = useState<string[]>(initialDraft.tags);
+  const [tagItems, setTagItems] = useState(() => Array.from(new Set([...tagOptions, ...initialDraft.tags])));
   const [titleSuggestions, setTitleSuggestions] = useState<string[]>([]);
   const [descriptionSuggestion, setDescriptionSuggestion] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
@@ -176,7 +192,15 @@ function StoryInfoForm({
           title: title.trim(),
           description: description.trim(),
           status: normalizeStatus(String(formData.get("status") ?? "ongoing")),
-          cover
+          cover,
+          category: String(formData.get("category") ?? ""),
+          ageRating: String(formData.get("rating") ?? "12+"),
+          language: String(formData.get("language") ?? "Русский"),
+          fandom: String(formData.get("fandom") ?? ""),
+          characters: String(formData.get("characters") ?? ""),
+          pairings: String(formData.get("pairings") ?? ""),
+          genres: selectedGenres,
+          tags: selectedTags
         });
       }}
     >
@@ -223,7 +247,7 @@ function StoryInfoForm({
 
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <Field label="Категория">
-              <Select name="category" defaultValue="">
+              <Select name="category" defaultValue={initialDraft.category}>
                 <option value="" disabled>
                   Выберите категорию
                 </option>
@@ -241,7 +265,7 @@ function StoryInfoForm({
               </Select>
             </Field>
             <Field label="Возрастной рейтинг">
-              <Select name="rating" defaultValue="12+">
+              <Select name="rating" defaultValue={initialDraft.ageRating}>
                 <option>0+</option>
                 <option>6+</option>
                 <option>12+</option>
@@ -250,20 +274,20 @@ function StoryInfoForm({
               </Select>
             </Field>
             <Field label="Язык">
-              <Select name="language" defaultValue="Русский">
+              <Select name="language" defaultValue={initialDraft.language}>
                 <option>Русский</option>
                 <option>Английский</option>
                 <option>Испанский</option>
               </Select>
             </Field>
             <Field label="Фандом">
-              <Input name="fandom" placeholder="Оригинальный мир или название фандома" />
+              <Input defaultValue={initialDraft.fandom} name="fandom" placeholder="Оригинальный мир или название фандома" />
             </Field>
             <Field label="Персонажи">
-              <Input name="characters" placeholder="Имена через запятую" />
+              <Input defaultValue={initialDraft.characters} name="characters" placeholder="Имена через запятую" />
             </Field>
             <Field label="Пейринги" className="md:col-span-2 xl:col-span-3">
-              <Input name="pairings" placeholder="Например: героиня / герой, команда & наставник" />
+              <Input defaultValue={initialDraft.pairings} name="pairings" placeholder="Например: героиня / герой, команда & наставник" />
             </Field>
         </div>
       </Card>
@@ -312,11 +336,13 @@ function StoryInfoForm({
 
 function CreateChaptersStep({
   chapters,
+  onBack,
   onChange,
   onToast,
   storyDraft
 }: {
   chapters: ChapterDraft[];
+  onBack: () => void;
   onChange: (chapters: ChapterDraft[]) => void;
   onToast: (message?: string) => void;
   storyDraft: StoryDraft;
@@ -370,10 +396,14 @@ function CreateChaptersStep({
 
       {error ? <p className="rounded-md border border-border bg-surface px-4 py-3 text-sm text-primary">{error}</p> : null}
 
-      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <Button disabled={pending} size="lg" type="button" onClick={() => void publishStory()}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Button className="sm:order-2" disabled={pending} size="lg" type="button" onClick={() => void publishStory()}>
           <Send size={18} />
-          Опубликовать произведение
+          {pending ? "Публикуем..." : "Опубликовать произведение"}
+        </Button>
+        <Button className="sm:order-1" disabled={pending} size="lg" type="button" variant="secondary" onClick={onBack}>
+          <ArrowLeft size={18} />
+          Назад к информации
         </Button>
       </div>
     </section>

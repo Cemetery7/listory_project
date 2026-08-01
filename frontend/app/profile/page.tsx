@@ -28,6 +28,9 @@ export default async function Page() {
             <p className="mt-2 text-sm text-text-muted">{user.email}</p>
           </div>
           <div className="flex flex-wrap gap-3">
+            <Link className="inline-flex h-11 items-center justify-center rounded-md border border-border bg-surface px-5 text-sm font-medium transition duration-200 hover:border-[color:var(--border-hover)]" href={ROUTES.author(user.id)}>
+              Публичный профиль
+            </Link>
             <Link className="inline-flex h-11 items-center justify-center rounded-md border border-border bg-surface px-5 text-sm font-medium transition duration-200 hover:border-[color:var(--border-hover)]" href={ROUTES.HOME}>
               На главную
             </Link>

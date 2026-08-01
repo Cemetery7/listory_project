@@ -21,7 +21,14 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       content: comment.content,
       created_at: comment.createdAt,
       updated_at: comment.updatedAt,
-      author: comment.author
+      author: comment.author,
+      replies: comment.replies.map((reply) => ({
+        id: reply.id,
+        content: reply.content,
+        created_at: reply.createdAt,
+        updated_at: reply.updatedAt,
+        author: reply.author
+      }))
     }))
   });
 }
