@@ -5,6 +5,7 @@ import { authorizeActiveUser } from "@/lib/auth/authorization";
 import { AI_CONFIG } from "@/lib/ai/config";
 import { getAIProvider } from "@/lib/ai/provider";
 import { checkAIRateLimit } from "@/lib/ai/rate-limit";
+import { logUnknownAIError } from "@/lib/ai/logging";
 import { AIRateLimitError, AITimeoutError, AIUnavailableError, type AIOperation, type AIRequestInput, type AIResult } from "@/lib/ai/types";
 
 type AIPayload = AIRequestInput & {
@@ -61,6 +62,7 @@ export async function POST(request: Request) {
       return errorResponse("ai_timeout", error.message, 504);
     }
 
+    logUnknownAIError(error, operation);
     return errorResponse("ai_failed", "AI не смог подготовить ответ. Попробуйте позже.", 502);
   }
 }

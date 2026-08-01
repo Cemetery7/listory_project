@@ -6,6 +6,7 @@ import { ROUTES } from "@/constants/routes";
 import { getStoryById } from "@/lib/stories/queries";
 import { AppShell } from "@/widgets/app-shell/app-shell";
 import { ChapterReader } from "@/widgets/reader/chapter-reader";
+import { StoryViewTracker } from "@/widgets/reader/story-view-tracker";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,7 @@ export default async function Page({ params }: ReaderPageProps) {
   return (
     <AppShell>
       <article className="mx-auto max-w-5xl space-y-6">
+        <StoryViewTracker storyId={story.id} />
         <Link className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primary-hover" href={ROUTES.work(story.id)}>
           <ArrowLeft size={16} />
           К произведению

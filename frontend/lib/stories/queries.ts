@@ -32,6 +32,7 @@ type StoryWithAuthorAndChapters = {
   _count: {
     likes: number;
     comments: number;
+    views: number;
   };
 };
 
@@ -50,7 +51,7 @@ export function mapStoryToWork(story: StoryWithAuthorAndChapters): Work {
     fandom: "Авторский мир",
     status: isStoryStatus(story.status) ? story.status : "ongoing",
     rating: 0,
-    views: "0",
+    views: String(story._count.views),
     likes: String(story._count.likes),
     commentsCount: story._count.comments,
     chaptersCount: story.chapters.length,
@@ -116,6 +117,7 @@ export async function getPublishedStories(options: StoryQuery = {}) {
       _count: {
         select: {
           likes: true,
+          views: true,
           comments: {
             where: { deletedAt: null }
           }
@@ -156,6 +158,7 @@ export async function getStoryById(id: string, viewerId?: string) {
       _count: {
         select: {
           likes: true,
+          views: true,
           comments: {
             where: { deletedAt: null }
           }

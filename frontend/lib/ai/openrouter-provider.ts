@@ -1,6 +1,6 @@
 import { AI_CONFIG } from "@/lib/ai/config";
 import { baseSystemMessage, continuationPrompt, descriptionPrompt, tagsPrompt, titlePrompt, type AIMessage } from "@/lib/ai/prompts";
-import { AIRateLimitError, AITimeoutError, AIUnavailableError, type AIOperation, type AIProvider, type AIRequestInput } from "@/lib/ai/types";
+import { AIProviderRequestError, AIRateLimitError, AITimeoutError, AIUnavailableError, type AIOperation, type AIProvider, type AIRequestInput } from "@/lib/ai/types";
 
 type OpenRouterResponse = {
   choices?: Array<{
@@ -18,8 +18,8 @@ export class OpenRouterProvider implements AIProvider {
   private readonly apiKey = process.env.OPENROUTER_API_KEY;
   private readonly apiUrl = process.env.OPENROUTER_API_URL ?? AI_CONFIG.DEFAULT_OPENROUTER_API_URL;
   private readonly model = process.env.OPENROUTER_MODEL ?? AI_CONFIG.DEFAULT_OPENROUTER_MODEL;
-  private readonly siteUrl = process.env.OPENROUTER_SITE_URL?.trim();
-  private readonly appName = process.env.OPENROUTER_APP_NAME?.trim() || AI_CONFIG.DEFAULT_OPENROUTER_APP_NAME;
+  private readonly siteUrl = normalizeHttpUrl(process.env.OPENROUTER_SITE_URL);
+  private readonly appName = normalizeAsciiHeader(process.env.OPENROUTER_APP_NAME);
 
   async suggestTitles(input: AIRequestInput) {
     const content = await this.complete("title", [baseSystemMessage(), titlePrompt(input)]);
@@ -51,13 +51,13 @@ export class OpenRouterProvider implements AIProvider {
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), AI_CONFIG.REQUEST_TIMEOUT_MS);
+    let providerStatus: number | undefined;
 
     try {
       const headers: Record<string, string> = {
         Authorization: `Bearer ${this.apiKey}`,
         "Content-Type": "application/json",
-        "X-Title": this.appName,
-        "X-OpenRouter-Title": this.appName
+        "X-Title": this.appName
       };
 
       if (this.siteUrl) {
@@ -75,6 +75,7 @@ export class OpenRouterProvider implements AIProvider {
           temperature: AI_CONFIG.TEMPERATURE
         })
       });
+      providerStatus = response.status;
 
       if (response.status === 401 || response.status === 403) {
         throw new AIUnavailableError("AI временно недоступен: проверьте ключ и права OpenRouter.");
@@ -128,10 +129,30 @@ export class OpenRouterProvider implements AIProvider {
         throw new AITimeoutError();
       }
 
-      throw error;
+      if (error instanceof AIUnavailableError || error instanceof AITimeoutError || error instanceof AIRateLimitError) {
+        throw error;
+      }
+
+      throw new AIProviderRequestError(providerStatus);
     } finally {
       clearTimeout(timeoutId);
     }
+  }
+}
+
+function normalizeAsciiHeader(value?: string) {
+  const candidate = value?.trim();
+  return candidate && /^[\x20-\x7E]+$/.test(candidate) ? candidate : AI_CONFIG.DEFAULT_OPENROUTER_APP_NAME;
+}
+
+function normalizeHttpUrl(value?: string) {
+  if (!value?.trim()) return undefined;
+
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : undefined;
+  } catch {
+    return undefined;
   }
 }
 

@@ -44,6 +44,7 @@ model User {
   stories       Story[]
   likes         StoryLike[]
   comments      Comment[]
+  storyViews    StoryView[]
   adminActions  AdminAuditLog[] @relation("AdminActor")
 
   @@index([role])
@@ -65,6 +66,7 @@ model Story {
   chapters    Chapter[]
   likes       StoryLike[]
   comments    Comment[]
+  views       StoryView[]
 
   @@index([authorId])
   @@index([visibility])
@@ -97,6 +99,18 @@ model StoryLike {
   @@id([userId, storyId])
   @@index([storyId])
   @@map("story_likes")
+}
+
+model StoryView {
+  storyId  String   @map("story_id") @db.Uuid
+  viewerId String   @map("viewer_id") @db.Uuid
+  viewedAt DateTime @default(now()) @map("viewed_at") @db.Timestamptz(6)
+  story    Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  viewer   User     @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+
+  @@id([storyId, viewerId])
+  @@index([viewerId])
+  @@map("story_views")
 }
 
 model Comment {

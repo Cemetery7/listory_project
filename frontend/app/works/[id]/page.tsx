@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarDays, UserRound } from "lucide-react";
+import { CalendarDays, Eye, UserRound } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getStoryById, isStoryCoverUrl } from "@/lib/stories/queries";
@@ -64,6 +64,10 @@ export default async function Page({ params }: StoryPageProps) {
               <span className="inline-flex items-center gap-2">
                 <CalendarDays size={16} />
                 {formatDate(story.createdAt)}
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <Eye size={16} />
+                {story._count.views} просмотров
               </span>
             </div>
             <div className="mt-6 border-t border-border pt-5">

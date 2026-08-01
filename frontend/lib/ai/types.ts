@@ -53,3 +53,13 @@ export class AIRateLimitError extends Error {
     this.name = "AIRateLimitError";
   }
 }
+
+export class AIProviderRequestError extends Error {
+  readonly status?: number;
+
+  constructor(status?: number) {
+    super("OpenRouter request failed.");
+    this.name = "AIProviderRequestError";
+    this.status = status;
+  }
+}

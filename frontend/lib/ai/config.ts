@@ -18,7 +18,7 @@ export const AI_CONFIG = {
   RATE_LIMIT_PER_MINUTE: 8,
   DEFAULT_OPENROUTER_API_URL: "https://openrouter.ai/api/v1/chat/completions",
   DEFAULT_OPENROUTER_MODEL: "deepseek/deepseek-v4-flash:free",
-  DEFAULT_OPENROUTER_APP_NAME: "Листория",
+  DEFAULT_OPENROUTER_APP_NAME: "Listoria",
   TEMPERATURE: 0.7,
   MAX_TOKENS: {
     title: 90,
