@@ -6,6 +6,7 @@ import { AI_CONFIG } from "@/lib/ai/config";
 import { getAIProvider } from "@/lib/ai/provider";
 import { checkAIRateLimit } from "@/lib/ai/rate-limit";
 import { logUnknownAIError } from "@/lib/ai/logging";
+import { validateAIRequest } from "@/lib/ai/request-validation";
 import { AIRateLimitError, AITimeoutError, AIUnavailableError, type AIOperation, type AIRequestInput, type AIResult } from "@/lib/ai/types";
 
 type AIPayload = AIRequestInput & {
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
   }
 
   const input = sanitizePayload(payload);
-  const validationError = validatePayload(operation, input);
+  const validationError = validateAIRequest(operation, input);
 
   if (validationError) {
     return errorResponse("validation_error", validationError, 422);
@@ -102,22 +103,6 @@ async function runOperation(provider: ReturnType<typeof getAIProvider>, operatio
     operation,
     suggestion: await provider.continueChapter(input)
   };
-}
-
-function validatePayload(operation: AIOperation, payload: AIRequestInput) {
-  if (operation === "description" && !payload.description?.trim()) {
-    return "Сначала напишите хотя бы несколько слов описания.";
-  }
-
-  if (operation === "tags" && !payload.title?.trim() && !payload.description?.trim()) {
-    return "Для подбора тегов добавьте название или описание.";
-  }
-
-  if (operation === "continue" && !payload.chapterText?.trim()) {
-    return "Сначала напишите несколько строк главы.";
-  }
-
-  return "";
 }
 
 function isAIOperation(operation?: string): operation is AIOperation {

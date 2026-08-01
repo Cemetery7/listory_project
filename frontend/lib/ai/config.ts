@@ -17,13 +17,13 @@ export const AI_CONFIG = {
   RATE_LIMIT_WINDOW_MS: 60000,
   RATE_LIMIT_PER_MINUTE: 8,
   DEFAULT_OPENROUTER_API_URL: "https://openrouter.ai/api/v1/chat/completions",
-  DEFAULT_OPENROUTER_MODEL: "deepseek/deepseek-v4-flash:free",
+  DEFAULT_OPENROUTER_MODEL: "openrouter/free",
   DEFAULT_OPENROUTER_APP_NAME: "Listoria",
   TEMPERATURE: 0.7,
   MAX_TOKENS: {
-    title: 90,
-    description: 260,
-    tags: 120,
-    continue: 380
+    title: 400,
+    description: 600,
+    tags: 400,
+    continue: 900
   } satisfies Record<AIOperation, number>
 } as const;

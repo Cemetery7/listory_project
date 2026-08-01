@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookOpen, Check, FileText, Send, Sparkles } from "lucide-react";
 import { AppShell } from "@/widgets/app-shell/app-shell";
@@ -101,11 +101,25 @@ function StoryInfoForm({
   const [loadingOperation, setLoadingOperation] = useState<AIOperation | null>(null);
   const [cover, setCover] = useState<string | null>(initialDraft.cover);
   const [coverPending, setCoverPending] = useState(false);
+  const aiRequestPending = useRef(false);
   const { cooldowns, startCooldown } = useAICooldown();
 
   const requestAI = async (operation: AIOperation) => {
-    if (loadingOperation || cooldowns[operation] > 0) {
+    if (aiRequestPending.current || loadingOperation || cooldowns[operation] > 0) {
       return;
+    }
+
+    aiRequestPending.current = true;
+    if (operation === "title") {
+      setTitleSuggestions([]);
+    }
+
+    if (operation === "description") {
+      setDescriptionSuggestion("");
+    }
+
+    if (operation === "tags") {
+      setTagSuggestions([]);
     }
 
     setLoadingOperation(operation);
@@ -135,6 +149,7 @@ function StoryInfoForm({
     } catch (error) {
       onToast(error instanceof Error ? error.message : "AI временно недоступен.");
     } finally {
+      aiRequestPending.current = false;
       setLoadingOperation(null);
     }
   };

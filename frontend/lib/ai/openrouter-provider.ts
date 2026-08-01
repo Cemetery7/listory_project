@@ -1,11 +1,15 @@
 import { AI_CONFIG } from "@/lib/ai/config";
-import { baseSystemMessage, continuationPrompt, descriptionPrompt, tagsPrompt, titlePrompt, type AIMessage } from "@/lib/ai/prompts";
+import { logAIProviderAttempt, type AIProviderAttempt } from "@/lib/ai/logging";
+import { baseSystemMessage, continuationPrompt, descriptionPrompt, tagsPrompt, tagsRepairPrompt, titlePrompt, titleRepairPrompt, type AIMessage } from "@/lib/ai/prompts";
+import { AIResponseValidationError, parseTagSuggestions, parseTitleSuggestions, validateRussianText } from "@/lib/ai/response-validation";
 import { AIProviderRequestError, AIRateLimitError, AITimeoutError, AIUnavailableError, type AIOperation, type AIProvider, type AIRequestInput } from "@/lib/ai/types";
 
 type OpenRouterResponse = {
+  model?: string;
   choices?: Array<{
     message?: {
       content?: string;
+      reasoning?: unknown;
     };
   }>;
   error?: {
@@ -22,36 +26,79 @@ export class OpenRouterProvider implements AIProvider {
   private readonly appName = normalizeAsciiHeader(process.env.OPENROUTER_APP_NAME);
 
   async suggestTitles(input: AIRequestInput) {
-    const content = await this.complete("title", [baseSystemMessage(), titlePrompt(input)]);
-    const suggestions = parseStringList(content).slice(0, AI_CONFIG.TITLE_VARIANTS);
-
-    if (suggestions.length !== AI_CONFIG.TITLE_VARIANTS) {
-      throw new AIUnavailableError("AI не смог подготовить варианты названия. Попробуйте ещё раз.");
-    }
-
-    return suggestions;
+    return this.completeStructured(
+      "title",
+      [baseSystemMessage(), titlePrompt(input)],
+      titleRepairPrompt(),
+      (content) => parseTitleSuggestions(content, input.title)
+    );
   }
 
   async improveDescription(input: AIRequestInput) {
-    return cleanText(await this.complete("description", [baseSystemMessage(), descriptionPrompt(input)]));
+    return this.completeText("description", [baseSystemMessage(), descriptionPrompt(input)]);
   }
 
   async suggestTags(input: AIRequestInput) {
-    return parseStringList(await this.complete("tags", [baseSystemMessage(), tagsPrompt(input)])).slice(0, AI_CONFIG.TAG_LIMIT);
+    return this.completeStructured("tags", [baseSystemMessage(), tagsPrompt(input)], tagsRepairPrompt(), parseTagSuggestions);
   }
 
   async continueChapter(input: AIRequestInput) {
-    return cleanText(await this.complete("continue", [baseSystemMessage(), continuationPrompt(input)]));
+    return this.completeText("continue", [baseSystemMessage(), continuationPrompt(input)]);
   }
 
-  private async complete(operation: AIOperation, messages: AIMessage[]) {
+  private async completeStructured(
+    operation: "title" | "tags",
+    messages: AIMessage[],
+    repairPrompt: AIMessage,
+    parse: (content: string) => string[]
+  ) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const retried = attempt === 1;
+      const completion = await this.complete(operation, retried ? [...messages, repairPrompt] : messages, retried);
+
+      try {
+        const result = parse(completion.content);
+        logAIProviderAttempt({ ...completion.diagnostics, parseSuccess: true });
+        return result;
+      } catch (error) {
+        if (!(error instanceof AIResponseValidationError)) {
+          throw error;
+        }
+
+        logAIProviderAttempt({ ...completion.diagnostics, parseSuccess: false });
+      }
+    }
+
+    throw new AIUnavailableError("AI вернул неподходящий ответ. Попробуйте сгенерировать ещё раз.");
+  }
+
+  private async completeText(operation: "description" | "continue", messages: AIMessage[]) {
+    const completion = await this.complete(operation, messages, false);
+
+    try {
+      const result = validateRussianText(completion.content);
+      logAIProviderAttempt({ ...completion.diagnostics, parseSuccess: true });
+      return result;
+    } catch (error) {
+      if (!(error instanceof AIResponseValidationError)) {
+        throw error;
+      }
+
+      logAIProviderAttempt({ ...completion.diagnostics, parseSuccess: false });
+      throw new AIUnavailableError("AI вернул неподходящий ответ. Попробуйте сгенерировать ещё раз.");
+    }
+  }
+
+  private async complete(operation: AIOperation, messages: AIMessage[], retried: boolean) {
     if (!this.apiKey) {
       throw new AIUnavailableError("AI временно недоступен: OpenRouter не настроен.");
     }
 
+    const startedAt = Date.now();
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), AI_CONFIG.REQUEST_TIMEOUT_MS);
     let providerStatus: number | undefined;
+    let providerModel: string | undefined;
 
     try {
       const headers: Record<string, string> = {
@@ -64,16 +111,22 @@ export class OpenRouterProvider implements AIProvider {
         headers["HTTP-Referer"] = this.siteUrl;
       }
 
+      const requestBody: Record<string, unknown> = {
+        model: this.model,
+        messages,
+        max_tokens: AI_CONFIG.MAX_TOKENS[operation],
+        temperature: AI_CONFIG.TEMPERATURE
+      };
+
+      if (operation === "title" || operation === "tags") {
+        requestBody.response_format = { type: "json_object" };
+      }
+
       const response = await fetch(this.apiUrl, {
         method: "POST",
         headers,
         signal: controller.signal,
-        body: JSON.stringify({
-          model: this.model,
-          messages,
-          max_tokens: AI_CONFIG.MAX_TOKENS[operation],
-          temperature: AI_CONFIG.TEMPERATURE
-        })
+        body: JSON.stringify(requestBody)
       });
       providerStatus = response.status;
 
@@ -105,9 +158,15 @@ export class OpenRouterProvider implements AIProvider {
 
       try {
         data = (await response.json()) as OpenRouterResponse;
-      } catch {
+      } catch (error) {
+        if (isAbortError(error)) {
+          throw error;
+        }
+
         throw new AIUnavailableError("OpenRouter вернул некорректный ответ.");
       }
+
+      providerModel = typeof data.model === "string" ? data.model : undefined;
 
       if (data.error) {
         if (Number(data.error.code) === 429) {
@@ -119,12 +178,26 @@ export class OpenRouterProvider implements AIProvider {
 
       const content = data.choices?.[0]?.message?.content;
 
-      if (typeof content !== "string" || !content.trim()) {
-        throw new AIUnavailableError("OpenRouter вернул пустой ответ.");
-      }
-
-      return content;
+      return {
+        content: typeof content === "string" ? content : "",
+        diagnostics: {
+          operation,
+          status: providerStatus,
+          durationMs: Date.now() - startedAt,
+          model: providerModel,
+          retried
+        } satisfies Omit<AIProviderAttempt, "parseSuccess">
+      };
     } catch (error) {
+      logAIProviderAttempt({
+        operation,
+        status: providerStatus,
+        durationMs: Date.now() - startedAt,
+        model: providerModel,
+        parseSuccess: false,
+        retried
+      });
+
       if (isAbortError(error)) {
         throw new AITimeoutError();
       }
@@ -158,27 +231,4 @@ function normalizeHttpUrl(value?: string) {
 
 function isAbortError(error: unknown) {
   return typeof error === "object" && error !== null && "name" in error && error.name === "AbortError";
-}
-
-function parseStringList(content: string) {
-  const trimmed = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-
-  try {
-    const parsed = JSON.parse(trimmed) as unknown;
-
-    if (Array.isArray(parsed)) {
-      return parsed.filter((item): item is string => typeof item === "string").map(cleanText).filter(Boolean);
-    }
-  } catch {
-    return trimmed
-      .split(/\n|,|;/)
-      .map((item) => cleanText(item.replace(/^[-*\d.)\s]+/, "")))
-      .filter(Boolean);
-  }
-
-  return [];
-}
-
-function cleanText(value: string) {
-  return value.trim().replace(/^["'«]+|["'»]+$/g, "").trim();
 }

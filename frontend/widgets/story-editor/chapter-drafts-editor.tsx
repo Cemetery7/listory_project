@@ -67,6 +67,11 @@ export function ChapterDraftsEditor({
 
   const continueChapter = async (chapter: ChapterDraft) => {
     if (aiChapterId || cooldowns.continue > 0) return;
+    setContinuations((current) => {
+      const next = { ...current };
+      delete next[chapter.clientId];
+      return next;
+    });
     setAiChapterId(chapter.clientId);
 
     try {
