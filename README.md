@@ -54,7 +54,7 @@
 
 ### AI-помощник
 
-Интеграция через **KodikRouter**.
+Интеграция через **OpenRouter**.
 
 Поддерживаются:
 
@@ -104,7 +104,7 @@
 
 ## AI
 
-- KodikRouter
+- OpenRouter
 - Gemini 2.5 Flash
 
 ---
@@ -126,7 +126,7 @@ API Routes
  │             │
  ▼             ▼
 
-PostgreSQL   KodikRouter
+PostgreSQL   OpenRouter
 
 ```
 
@@ -248,7 +248,7 @@ KODIK_MODEL
 
 # AI
 
-В проекте используется KodikRouter.
+В проекте используется OpenRouter.
 
 По умолчанию поддерживается Gemini 2.5 Flash.
 
